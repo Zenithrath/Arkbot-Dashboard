@@ -5,17 +5,20 @@ import {
   Bot,
   Copy,
   RotateCcw,
-  Menu,
   Check,
   Sparkles,
   Paperclip,
+  Plus,
+  X,
+  FileText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Sidebar } from "@/components/layout/Sidebar"
 
 const CHAT_API_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/chat-widget"
+
+const STORAGE_KEY = "arkbot-chat"
 
 interface Message {
   id: string
@@ -24,21 +27,49 @@ interface Message {
   timestamp: number
 }
 
-function generateSessionId() {
-  return uuidv4()
+interface ChatStorage {
+  sessionId: string
+  messages: Message[]
+}
+
+function loadChat(): ChatStorage {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) return JSON.parse(raw)
+  } catch {}
+  return { sessionId: uuidv4(), messages: [] }
+}
+
+function saveChat(data: ChatStorage) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  } catch {}
 }
 
 export function ChatPage() {
-  const [sessionId] = useState(generateSessionId)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [chat, setChat] = useState<ChatStorage>(loadChat)
+  const sessionId = chat.sessionId
+  const messages = chat.messages
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [sidebarOpen, setSidebarOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const openFilePicker = useCallback(() => {
+    const el = document.createElement("input")
+    el.type = "file"
+    el.multiple = true
+    el.onchange = (e) => {
+      const files = (e.target as HTMLInputElement).files
+      if (files) {
+        setSelectedFiles((prev) => [...prev, ...Array.from(files)])
+      }
+    }
+    el.click()
+  }, [])
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -56,29 +87,73 @@ export function ChatPage() {
     textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
   }, [input])
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === "u") {
+        e.preventDefault()
+        openFilePicker()
+      }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [openFilePicker])
+
+  useEffect(() => {
+    saveChat({ sessionId, messages })
+  }, [sessionId, messages])
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
   const sendMessage = useCallback(
     async (text: string) => {
-      if (!text.trim() || isLoading) return
+      if ((!text.trim() && selectedFiles.length === 0) || isLoading) return
 
       const userMsg: Message = {
         id: uuidv4(),
         role: "user",
-        content: text.trim(),
+        content:
+          text.trim() ||
+          (selectedFiles.length > 0
+            ? `[${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} dilampirkan]`
+            : ""),
         timestamp: Date.now(),
       }
 
-      setMessages((prev) => [...prev, userMsg])
+      setChat((prev) => ({ ...prev, messages: [...prev.messages, userMsg] }))
       setInput("")
+      setSelectedFiles([])
       setIsLoading(true)
 
       try {
-        const res = await fetch(CHAT_API_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: text.trim(), sessionId }),
-        })
+        let res: Response
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (selectedFiles.length > 0) {
+          const formData = new FormData()
+          formData.append("message", text.trim())
+          formData.append("sessionId", sessionId)
+          selectedFiles.forEach((file) => {
+            formData.append("files", file)
+          })
+
+          res = await fetch(CHAT_API_URL, {
+            method: "POST",
+            body: formData,
+          })
+        } else {
+          res = await fetch(CHAT_API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: text.trim(), sessionId }),
+          })
+        }
+
+        if (!res.ok) {
+          const errorBody = await res.text()
+          console.error("API error response:", res.status, errorBody)
+          throw new Error(`HTTP ${res.status}: ${errorBody}`)
+        }
 
         const data = await res.json()
         const reply =
@@ -90,8 +165,12 @@ export function ChatPage() {
           content: reply || "Maaf, tidak ada jawaban yang diterima.",
           timestamp: Date.now(),
         }
-        setMessages((prev) => [...prev, assistantMsg])
-      } catch {
+        setChat((prev) => ({
+          ...prev,
+          messages: [...prev.messages, assistantMsg],
+        }))
+      } catch (err) {
+        console.error("Chat API error:", err)
         const errorMsg: Message = {
           id: uuidv4(),
           role: "assistant",
@@ -99,12 +178,15 @@ export function ChatPage() {
             "Maaf, terjadi kesalahan saat menghubungi server. Silakan coba lagi.",
           timestamp: Date.now(),
         }
-        setMessages((prev) => [...prev, errorMsg])
+        setChat((prev) => ({
+          ...prev,
+          messages: [...prev.messages, errorMsg],
+        }))
       } finally {
         setIsLoading(false)
       }
     },
-    [isLoading, sessionId]
+    [isLoading, sessionId, selectedFiles]
   )
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -121,77 +203,53 @@ export function ChatPage() {
   }
 
   const handleNewChat = () => {
-    setMessages([])
-    setInput("")
-  }
-
-  const handleSuggestionClick = (suggestion: string) => {
-    sendMessage(suggestion)
+    const fresh: ChatStorage = { sessionId: uuidv4(), messages: [] }
+    setChat(fresh)
+    setSelectedFiles([])
   }
 
   const isEmpty = messages.length === 0
 
-  // Ctrl+U to open file picker
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "u") {
-        e.preventDefault()
-        fileInputRef.current?.click()
-      }
-    }
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-  }, [])
-
   return (
-    <div className="relative flex h-full flex-col bg-background">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+    <div className="flex h-screen flex-col bg-background">
+      {isEmpty ? (
+        /* Welcome state */
+        <div className="flex flex-1 flex-col items-center justify-center px-4">
+          <h1 className="mb-10 text-center text-3xl font-light text-white/80 sm:text-4xl">
+            Siap Anda gunakan kapan saja
+          </h1>
 
-      {/* Mobile sidebar */}
-      <div
-        className={cn(
-          "fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-200 ease-in-out lg:hidden",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        )}
-      >
-        <Sidebar onClose={() => setSidebarOpen(false)} />
-      </div>
+          <div className="w-full max-w-3xl">
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
+              <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
+                {selectedFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2 px-2 pt-2 pb-1">
+                    {selectedFiles.map((file, i) => (
+                      <div
+                        key={`${file.name}-${i}`}
+                        className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1 text-xs text-white/70"
+                      >
+                        <FileText className="h-3 w-3 shrink-0" />
+                        <span className="max-w-[120px] truncate">
+                          {file.name}
+                        </span>
+                        <button
+                          onClick={() => removeFile(i)}
+                          className="ml-0.5 shrink-0 rounded-full p-0.5 hover:bg-white/10"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-      {/* Mobile menu button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 left-4 z-10 h-9 w-9 rounded-full bg-white/5 hover:bg-white/10 lg:hidden"
-        onClick={() => setSidebarOpen(true)}
-      >
-        <Menu className="h-5 w-5 text-white/70" />
-      </Button>
-
-      {/* Content */}
-      <div className="relative z-10 flex flex-1 flex-col">
-        {isEmpty ? (
-          /* Welcome state */
-          <div className="flex flex-1 flex-col items-center justify-center px-4">
-            <h1 className="mb-10 text-center text-3xl font-light text-white/80 sm:text-4xl">
-              Siap Anda gunakan kapan saja
-            </h1>
-
-            {/* Input box with glow */}
-            <div className="w-full max-w-3xl">
-              <div className="relative">
-                {/* Red-orange glow */}
-                <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
-                <div className="relative flex items-center rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
+                <div className="flex items-center">
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 shrink-0 rounded-xl px-3 py-2 text-sm text-white/50 hover:text-white/70 hover:bg-white/5 transition-colors"
+                    onClick={openFilePicker}
+                    className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
                   >
                     <Paperclip className="h-4 w-4" />
                     <span>Add files</span>
@@ -207,11 +265,13 @@ export function ChatPage() {
                   />
                   <Button
                     size="icon"
-                    disabled={!input.trim() || isLoading}
+                    disabled={
+                      (!input.trim() && selectedFiles.length === 0) || isLoading
+                    }
                     onClick={() => sendMessage(input)}
                     className={cn(
                       "h-10 w-10 shrink-0 rounded-lg transition-colors !bg-transparent !opacity-100",
-                      input.trim() && !isLoading
+                      (input.trim() || selectedFiles.length > 0) && !isLoading
                         ? "!text-white hover:bg-white/10"
                         : "!text-white/30 cursor-not-allowed"
                     )}
@@ -220,60 +280,99 @@ export function ChatPage() {
                   </Button>
                 </div>
               </div>
-              <p className="mt-3 text-center text-xs text-white/20">
-                ArkBot dapat membuat kesalahan. Pastikan informasi yang diberikan sudah benar.
-              </p>
+            </div>
+            <p className="mt-3 text-center text-xs text-white/20">
+              ArkBot dapat membuat kesalahan. Mohon di periksa kembali informasi
+              yang diberikan.
+            </p>
+          </div>
+        </div>
+      ) : (
+        /* Conversation state */
+        <>
+          {/* Header */}
+          <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 rounded-lg text-white/40 hover:text-white/60 hover:bg-white/5"
+              onClick={handleNewChat}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+
+          {/* Messages */}
+          <div className="flex-1 min-h-0 overflow-y-auto bg-background scrollbar-hide">
+            <div className="mx-auto max-w-3xl px-4 py-6 space-y-6">
+              {messages.map((msg) => (
+                <MessageBubble
+                  key={msg.id}
+                  message={msg}
+                  onCopy={handleCopy}
+                  onRegenerate={
+                    msg.role === "assistant"
+                      ? () => {
+                          const msgIndex = messages.findIndex(
+                            (m) => m.id === msg.id
+                          )
+                          const prevUserMsg = messages
+                            .slice(0, msgIndex)
+                            .reverse()
+                            .find((m) => m.role === "user")
+                          if (prevUserMsg) {
+                            setChat((prev) => ({
+                              ...prev,
+                              messages: prev.messages.filter(
+                                (m) => m.id !== msg.id
+                              ),
+                            }))
+                            sendMessage(prevUserMsg.content)
+                          }
+                        }
+                      : undefined
+                  }
+                  copiedId={copiedId}
+                />
+              ))}
+              {isLoading && <TypingIndicator />}
+              <div ref={messagesEndRef} />
             </div>
           </div>
-        ) : (
-          /* Conversation state */
-          <>
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="mx-auto max-w-3xl px-4 py-6 space-y-6">
-                {messages.map((msg) => (
-                  <MessageBubble
-                    key={msg.id}
-                    message={msg}
-                    onCopy={handleCopy}
-                    onRegenerate={
-                      msg.role === "assistant"
-                        ? () => {
-                            const msgIndex = messages.findIndex(
-                              (m) => m.id === msg.id
-                            )
-                            const prevUserMsg = messages
-                              .slice(0, msgIndex)
-                              .reverse()
-                              .find((m) => m.role === "user")
-                            if (prevUserMsg) {
-                              setMessages((prev) =>
-                                prev.filter((m) => m.id !== msg.id)
-                              )
-                              sendMessage(prevUserMsg.content)
-                            }
-                          }
-                        : undefined
-                    }
-                    copiedId={copiedId}
-                  />
-                ))}
-                {isLoading && <TypingIndicator />}
-                <div ref={messagesEndRef} />
-              </div>
-            </div>
 
-            {/* Input box - bottom with glow */}
-            <div className="shrink-0 px-4 pb-4 pt-2">
-              <div className="mx-auto max-w-3xl">
-                <div className="relative">
-                  {/* Red-orange glow */}
-                  <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
-                  <div className="relative flex items-center rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
+          {/* Input */}
+          <div className="shrink-0 px-4 pb-4 pt-2 bg-background">
+            <div className="mx-auto max-w-3xl">
+              <div className="relative">
+                <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
+                <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
+                  {selectedFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 px-2 pt-2 pb-1">
+                      {selectedFiles.map((file, i) => (
+                        <div
+                          key={`${file.name}-${i}`}
+                          className="flex items-center gap-1.5 rounded-lg bg-white/10 px-2.5 py-1 text-xs text-white/70"
+                        >
+                          <FileText className="h-3 w-3 shrink-0" />
+                          <span className="max-w-[120px] truncate">
+                            {file.name}
+                          </span>
+                          <button
+                            onClick={() => removeFile(i)}
+                            className="ml-0.5 shrink-0 rounded-full p-0.5 hover:bg-white/10"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center">
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 shrink-0 rounded-xl px-3 py-2 text-sm text-white/50 hover:text-white/70 hover:bg-white/5 transition-colors"
+                      onClick={openFilePicker}
+                      className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
                     >
                       <Paperclip className="h-4 w-4" />
                       <span>Add files</span>
@@ -289,11 +388,14 @@ export function ChatPage() {
                     />
                     <Button
                       size="icon"
-                      disabled={!input.trim() || isLoading}
+                      disabled={
+                        (!input.trim() && selectedFiles.length === 0) ||
+                        isLoading
+                      }
                       onClick={() => sendMessage(input)}
                       className={cn(
                         "h-10 w-10 shrink-0 rounded-lg transition-colors !bg-transparent !opacity-100",
-                        input.trim() && !isLoading
+                        (input.trim() || selectedFiles.length > 0) && !isLoading
                           ? "!text-white hover:bg-white/10"
                           : "!text-white/30 cursor-not-allowed"
                       )}
@@ -302,26 +404,15 @@ export function ChatPage() {
                     </Button>
                   </div>
                 </div>
-                <p className="mt-2 text-center text-xs text-white/20">
-                  ArkBot dapat membuat kesalahan. Pastikan informasi yang diverikan sudah benar.
-                </p>
               </div>
+              <p className="mt-2 text-center text-xs text-white/20">
+                ArkBot dapat membuat kesalahan. Pastikan informasi yang diberikan
+                sudah benar.
+              </p>
             </div>
-          </>
-        )}
-      </div>
-
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        className="hidden"
-        onChange={(e) => {
-          console.log("Selected files:", e.target.files)
-          e.target.value = ""
-        }}
-      />
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -351,17 +442,17 @@ function MessageBubble({
 
   return (
     <div className="group/msg flex gap-3">
-      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10 mt-0.5">
+      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/10">
         <Bot className="h-4 w-4 text-white/60" />
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="prose prose-invert prose-sm max-w-none text-white/90 leading-relaxed">
+      <div className="min-w-0 flex-1">
+        <div className="prose prose-invert prose-sm max-w-none leading-relaxed text-white/90">
           <ReactMarkdown>{message.content}</ReactMarkdown>
         </div>
-        <div className="mt-2 flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-opacity">
+        <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
           <button
             onClick={() => onCopy(message.content, message.id)}
-            className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-white/40 hover:bg-white/5 hover:text-white/60 transition-colors"
+            className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-white/40 transition-colors hover:bg-white/5 hover:text-white/60"
           >
             {copiedId === message.id ? (
               <>
@@ -378,7 +469,7 @@ function MessageBubble({
           {onRegenerate && (
             <button
               onClick={onRegenerate}
-              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-white/40 hover:bg-white/5 hover:text-white/60 transition-colors"
+              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-white/40 transition-colors hover:bg-white/5 hover:text-white/60"
             >
               <RotateCcw className="h-3 w-3" />
               Ulangi
@@ -397,9 +488,9 @@ function TypingIndicator() {
         <Bot className="h-4 w-4 text-white/60" />
       </div>
       <div className="flex items-center gap-1.5 py-3">
-        <span className="h-2 w-2 rounded-full bg-white/30 animate-pulse" />
-        <span className="h-2 w-2 rounded-full bg-white/30 animate-pulse [animation-delay:0.2s]" />
-        <span className="h-2 w-2 rounded-full bg-white/30 animate-pulse [animation-delay:0.4s]" />
+        <span className="h-2 w-2 animate-pulse rounded-full bg-white/30" />
+        <span className="h-2 w-2 animate-pulse rounded-full bg-white/30 [animation-delay:0.2s]" />
+        <span className="h-2 w-2 animate-pulse rounded-full bg-white/30 [animation-delay:0.4s]" />
       </div>
     </div>
   )

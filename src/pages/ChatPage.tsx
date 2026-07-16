@@ -55,6 +55,17 @@ export function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
+      {/* Admin button - always visible */}
+      <div className="absolute top-3 left-3 z-10">
+        <a
+          href="/admin"
+          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/40 hover:text-white/60 hover:bg-white/5 transition-colors"
+        >
+          <Settings className="h-4 w-4" />
+          <span className="hidden sm:inline">Admin</span>
+        </a>
+      </div>
+
       {isEmpty ? (
         /* Welcome state */
         <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden">
@@ -134,14 +145,7 @@ export function ChatPage() {
         /* Conversation state */
         <>
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-2">
-            <a
-              href="/admin"
-              className="flex items-center gap-2 text-sm text-white/40 hover:text-white/60 transition-colors"
-            >
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Admin</span>
-            </a>
+          <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-2">
             <Button
               variant="ghost"
               size="icon"

@@ -53,7 +53,7 @@ export function AdminChatPage() {
       {/* New session button - fixed position */}
       <button
         onClick={handleNewChat}
-        className="fixed top-3 right-3 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
+        className="fixed top-3 right-16 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
       >
         <Plus className="h-4 w-4" />
       </button>

@@ -147,7 +147,7 @@ export function AdminChatPage() {
                         <Bot className="h-3.5 w-3.5 text-white/60" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="prose prose-invert prose-sm max-w-none text-sm leading-relaxed text-white/90">
+                        <div className="prose prose-invert prose-sm max-w-none text-sm leading-relaxed text-white/90 break-words overflow-wrap-anywhere">
                           <ReactMarkdown>{formatContent(msg.content)}</ReactMarkdown>
                         </div>
                         <div className="mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">

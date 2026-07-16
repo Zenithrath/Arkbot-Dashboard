@@ -146,17 +146,26 @@ export function AdminLayout() {
 
       {/* Main content */}
       <main className="flex-1 overflow-hidden flex flex-col min-w-0">
-        {/* Top bar */}
-        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0">
+        {/* Top bar - mobile */}
+        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0 lg:hidden">
           <button
             onClick={() => setMobileOpen(true)}
-            className="lg:hidden text-white/60 hover:text-white/80 mr-3"
+            className="text-white/60 hover:text-white/80 mr-3"
           >
             <Menu className="h-5 w-5" />
           </button>
+          <img
+            src="/logo-arka.png"
+            alt="Arka Logo"
+            className="h-5 w-auto object-contain"
+          />
           <div className="ml-auto">
             <NotificationBell />
           </div>
+        </div>
+        {/* Top bar - desktop */}
+        <div className="hidden lg:flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0 justify-end">
+          <NotificationBell />
         </div>
         <div className="flex-1 overflow-auto overflow-x-hidden">
           <Outlet />

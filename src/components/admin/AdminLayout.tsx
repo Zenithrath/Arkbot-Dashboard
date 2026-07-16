@@ -158,7 +158,7 @@ export function AdminLayout() {
             <NotificationBell />
           </div>
         </div>
-        <div className="flex-1 overflow-auto">
+        <div className="flex-1 overflow-auto overflow-x-hidden">
           <Outlet />
         </div>
       </main>

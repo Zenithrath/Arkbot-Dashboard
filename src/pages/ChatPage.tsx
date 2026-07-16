@@ -53,17 +53,17 @@ export function ChatPage() {
   const isEmpty = messages.length === 0
 
   return (
-    <div className="flex h-screen flex-col bg-background">
+    <div className="flex h-screen flex-col bg-background overflow-hidden">
       {isEmpty ? (
         /* Welcome state */
-        <div className="flex flex-1 flex-col items-center justify-center px-4">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden">
           <h1 className="mb-10 text-center text-3xl font-light text-white/80 sm:text-4xl">
             Siap Anda gunakan kapan saja
           </h1>
 
           <div className="w-full max-w-3xl">
             <div className="relative">
-              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
+              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl overflow-hidden" />
               <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
                 {selectedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 px-2 pt-2 pb-1">
@@ -166,9 +166,9 @@ export function ChatPage() {
           </div>
 
           {/* Input */}
-          <div className="shrink-0 px-4 pb-4 pt-2 bg-background">
+          <div className="shrink-0 px-4 pb-4 pt-2 bg-background overflow-hidden">
             <div className="mx-auto max-w-3xl">
-              <div className="relative">
+              <div className="relative overflow-hidden">
                 <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
                 <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
                   {selectedFiles.length > 0 && (

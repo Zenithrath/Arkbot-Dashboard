@@ -49,14 +49,14 @@ export function AdminChatPage() {
   const isEmpty = messages.length === 0
 
   return (
-    <div className="flex h-full flex-col bg-background">
+    <div className="flex h-full flex-col bg-background overflow-hidden">
       {isEmpty ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-4">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden">
           <h1 className="mb-10 text-center text-2xl font-light text-white/80">
             Admin Chat
           </h1>
           <div className="w-full max-w-2xl">
-            <div className="relative">
+            <div className="relative overflow-hidden">
               <div className="absolute -inset-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-400/10 blur-xl" />
               <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5">
                 {selectedFiles.length > 0 && (
@@ -183,9 +183,9 @@ export function AdminChatPage() {
             </div>
           </div>
 
-          <div className="shrink-0 px-4 pb-3 pt-2 bg-background">
+          <div className="shrink-0 px-4 pb-3 pt-2 bg-background overflow-hidden">
             <div className="mx-auto max-w-2xl">
-              <div className="relative">
+              <div className="relative overflow-hidden">
                 <div className="absolute -inset-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-400/10 blur-xl" />
                 <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5">
                   {selectedFiles.length > 0 && (

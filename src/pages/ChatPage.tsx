@@ -1,5 +1,3 @@
-import { useState, useRef, useEffect, useCallback } from "react"
-import { v4 as uuidv4 } from "uuid"
 import ReactMarkdown from "react-markdown"
 import {
   Bot,
@@ -14,199 +12,36 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { useChat, Message } from "@/hooks/useChat"
 
 const CHAT_API_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/chat-widget"
-
-const STORAGE_KEY = "arkbot-chat"
-
-interface Message {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  timestamp: number
-}
-
-interface ChatStorage {
-  sessionId: string
-  messages: Message[]
-}
-
-function loadChat(): ChatStorage {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return { sessionId: uuidv4(), messages: [] }
-}
-
-function saveChat(data: ChatStorage) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  } catch {}
-}
+const CHAT_API_KEY = import.meta.env.VITE_CHAT_API_KEY || ""
 
 export function ChatPage() {
-  const [chat, setChat] = useState<ChatStorage>(loadChat)
-  const sessionId = chat.sessionId
-  const messages = chat.messages
-  const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const [copiedId, setCopiedId] = useState<string | null>(null)
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-
-  const openFilePicker = useCallback(() => {
-    const el = document.createElement("input")
-    el.type = "file"
-    el.multiple = true
-    el.onchange = (e) => {
-      const files = (e.target as HTMLInputElement).files
-      if (files) {
-        setSelectedFiles((prev) => [...prev, ...Array.from(files)])
-      }
-    }
-    el.click()
-  }, [])
-
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages, isLoading, scrollToBottom])
-
-  useEffect(() => {
-    const textarea = textareaRef.current
-    if (!textarea) return
-    textarea.style.height = "auto"
-    const maxHeight = 152
-    textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
-  }, [input])
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === "u") {
-        e.preventDefault()
-        openFilePicker()
-      }
-    }
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-  }, [openFilePicker])
-
-  useEffect(() => {
-    saveChat({ sessionId, messages })
-  }, [sessionId, messages])
-
-  const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const sendMessage = useCallback(
-    async (text: string) => {
-      if ((!text.trim() && selectedFiles.length === 0) || isLoading) return
-
-      const userMsg: Message = {
-        id: uuidv4(),
-        role: "user",
-        content:
-          text.trim() ||
-          (selectedFiles.length > 0
-            ? `[${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} dilampirkan]`
-            : ""),
-        timestamp: Date.now(),
-      }
-
-      setChat((prev) => ({ ...prev, messages: [...prev.messages, userMsg] }))
-      setInput("")
-      setSelectedFiles([])
-      setIsLoading(true)
-
-      try {
-        let res: Response
-
-        if (selectedFiles.length > 0) {
-          const formData = new FormData()
-          formData.append("message", text.trim())
-          formData.append("sessionId", sessionId)
-          selectedFiles.forEach((file) => {
-            formData.append("files", file)
-          })
-
-          res = await fetch(CHAT_API_URL, {
-            method: "POST",
-            body: formData,
-          })
-        } else {
-          res = await fetch(CHAT_API_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ message: text.trim(), sessionId }),
-          })
-        }
-
-        if (!res.ok) {
-          const errorBody = await res.text()
-          console.error("API error response:", res.status, errorBody)
-          throw new Error(`HTTP ${res.status}: ${errorBody}`)
-        }
-
-        const data = await res.json()
-        const reply =
-          data.reply ?? data.response ?? data.message ?? data.answer ?? ""
-
-        const assistantMsg: Message = {
-          id: uuidv4(),
-          role: "assistant",
-          content: reply || "Maaf, tidak ada jawaban yang diterima.",
-          timestamp: Date.now(),
-        }
-        setChat((prev) => ({
-          ...prev,
-          messages: [...prev.messages, assistantMsg],
-        }))
-      } catch (err) {
-        console.error("Chat API error:", err)
-        const errorMsg: Message = {
-          id: uuidv4(),
-          role: "assistant",
-          content:
-            "Maaf, terjadi kesalahan saat menghubungi server. Silakan coba lagi.",
-          timestamp: Date.now(),
-        }
-        setChat((prev) => ({
-          ...prev,
-          messages: [...prev.messages, errorMsg],
-        }))
-      } finally {
-        setIsLoading(false)
-      }
-    },
-    [isLoading, sessionId, selectedFiles]
-  )
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault()
-      sendMessage(input)
-    }
-  }
-
-  const handleCopy = async (text: string, id: string) => {
-    await navigator.clipboard.writeText(text)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
-  }
-
-  const handleNewChat = () => {
-    const fresh: ChatStorage = { sessionId: uuidv4(), messages: [] }
-    setChat(fresh)
-    setSelectedFiles([])
-  }
+  const {
+    messages,
+    input,
+    setInput,
+    isLoading,
+    copiedId,
+    selectedFiles,
+    removeFile,
+    messagesEndRef,
+    textareaRef,
+    sendMessage,
+    handleKeyDown,
+    handleCopy,
+    handleNewChat,
+    handleRegenerate,
+    openFilePicker,
+  } = useChat({
+    apiEndpoint: CHAT_API_URL,
+    apiKey: CHAT_API_KEY,
+    localStorageKey: "arkbot-chat",
+    emptyReplyMessage: "Maaf, tidak ada jawaban yang diterima.",
+    errorMessage: "Maaf, terjadi kesalahan saat menghubungi server. Silakan coba lagi.",
+  })
 
   const isEmpty = messages.length === 0
 
@@ -312,24 +147,7 @@ export function ChatPage() {
                   onCopy={handleCopy}
                   onRegenerate={
                     msg.role === "assistant"
-                      ? () => {
-                          const msgIndex = messages.findIndex(
-                            (m) => m.id === msg.id
-                          )
-                          const prevUserMsg = messages
-                            .slice(0, msgIndex)
-                            .reverse()
-                            .find((m) => m.role === "user")
-                          if (prevUserMsg) {
-                            setChat((prev) => ({
-                              ...prev,
-                              messages: prev.messages.filter(
-                                (m) => m.id !== msg.id
-                              ),
-                            }))
-                            sendMessage(prevUserMsg.content)
-                          }
-                        }
+                      ? () => handleRegenerate(msg.id)
                       : undefined
                   }
                   copiedId={copiedId}

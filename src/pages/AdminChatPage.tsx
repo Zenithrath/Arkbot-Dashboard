@@ -50,8 +50,16 @@ export function AdminChatPage() {
 
   return (
     <div className="flex h-full flex-col bg-background overflow-hidden relative">
+      {/* New session button - fixed position */}
+      <button
+        onClick={handleNewChat}
+        className="fixed top-3 right-3 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
+      >
+        <Plus className="h-4 w-4" />
+      </button>
+
       {isEmpty ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden pt-12">
           <h1 className="mb-10 text-center text-2xl font-light text-white/80">
             Admin Chat
           </h1>
@@ -120,18 +128,7 @@ export function AdminChatPage() {
         </div>
       ) : (
         <>
-          <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-lg text-white/40 hover:text-white/60 hover:bg-white/5"
-              onClick={handleNewChat}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-
-          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide pt-12">
             <div className="mx-auto max-w-2xl px-4 py-4 space-y-4">
               {messages.map((msg) => (
                 <div key={msg.id}>

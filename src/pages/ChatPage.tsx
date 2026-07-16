@@ -18,6 +18,13 @@ const CHAT_API_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/chat-widget"
 const CHAT_API_KEY = import.meta.env.VITE_CHAT_API_KEY || ""
 
+function formatContent(text: string) {
+  return text.replace(
+    /(https?:\/\/[^\s<>")\]]+)/g,
+    "[$1]($1)"
+  )
+}
+
 export function ChatPage() {
   const {
     messages,
@@ -265,7 +272,7 @@ function MessageBubble({
       </div>
       <div className="min-w-0 flex-1">
         <div className="prose prose-invert prose-sm max-w-none leading-relaxed text-white/90">
-          <ReactMarkdown>{message.content}</ReactMarkdown>
+          <ReactMarkdown>{formatContent(message.content)}</ReactMarkdown>
         </div>
         <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
           <button

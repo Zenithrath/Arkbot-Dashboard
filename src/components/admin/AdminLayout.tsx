@@ -9,8 +9,6 @@ import {
   Upload,
   LogOut,
   Loader2,
-  ChevronsLeft,
-  ChevronsRight,
   Menu,
   X,
 } from "lucide-react"
@@ -24,8 +22,7 @@ const navItems = [
 
 export function AdminLayout() {
   const [loading, setLoading] = useState(true)
-  const [collapsed, setCollapsed] = useState(false)
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -41,9 +38,10 @@ export function AdminLayout() {
     })
   }, [navigate])
 
+  // Close sidebar on route change
   useEffect(() => {
-    setMobileOpen(false)
-  }, [location])
+    setSidebarOpen(false)
+  }, [location.pathname])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -61,20 +59,19 @@ export function AdminLayout() {
   return (
     <div className="flex h-screen bg-background">
       {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+      <div
+        className={cn(
+          "fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 lg:hidden",
+          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={() => setSidebarOpen(false)}
+      />
 
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex flex-col border-r border-white/[0.06] bg-[#131314] transition-all duration-200 z-50",
-          "fixed inset-y-0 left-0 lg:relative",
-          collapsed ? "w-[68px]" : "w-64",
-          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/[0.06] bg-[#131314] transition-transform duration-200 lg:relative lg:translate-x-0",
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
         {/* Header */}
@@ -85,8 +82,8 @@ export function AdminLayout() {
             className="h-5 w-auto shrink-0 object-contain"
           />
           <button
-            onClick={() => setMobileOpen(false)}
-            className="lg:hidden text-white/50 hover:text-white/80"
+            onClick={() => setSidebarOpen(false)}
+            className="text-white/50 hover:text-white/80 lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
@@ -98,68 +95,44 @@ export function AdminLayout() {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  collapsed && "justify-center px-0",
                   isActive
                     ? "bg-white/10 text-white"
                     : "text-white/50 hover:bg-white/5 hover:text-white/80"
                 )
               }
-              title={collapsed ? item.label : undefined}
             >
               <item.icon className="h-4 w-4 shrink-0" />
-              {!collapsed && item.label}
+              {item.label}
             </NavLink>
           ))}
         </nav>
 
         {/* Footer */}
-        <div className="space-y-2 border-t border-white/[0.06] p-3">
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn(
-              "hidden lg:flex w-full items-center justify-center gap-3 rounded-lg py-2 text-sm font-medium text-white/40 transition-colors hover:bg-white/5 hover:text-white/60",
-              collapsed && "px-0"
-            )}
-          >
-            {collapsed ? (
-              <ChevronsRight className="h-4 w-4" />
-            ) : (
-              <ChevronsLeft className="h-4 w-4" />
-            )}
-          </button>
+        <div className="border-t border-white/[0.06] p-3">
           <button
             onClick={handleLogout}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white/80",
-              collapsed && "justify-center px-0"
-            )}
-            title={collapsed ? "Logout" : undefined}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white/80"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            {!collapsed && "Logout"}
+            Logout
           </button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden flex flex-col min-w-0 relative">
-        {/* Mobile hamburger - fixed position */}
-        <button
-          onClick={() => setMobileOpen(true)}
-          className="fixed top-3 left-3 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm lg:hidden"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
+      <main className="flex-1 overflow-hidden flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0 relative z-20 bg-[#0a0a0a] lg:pl-4">
-          <img
-            src="/logo-arka.png"
-            alt="Arka Logo"
-            className="h-5 w-auto object-contain hidden lg:block ml-12"
-          />
+        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0 bg-[#0a0a0a]">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="mr-3 text-white/60 hover:text-white/80 lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
           <div className="ml-auto">
             <NotificationBell />
           </div>

@@ -6,7 +6,6 @@ import {
   Check,
   Sparkles,
   Paperclip,
-  Plus,
   X,
   FileText,
   Settings,
@@ -40,7 +39,6 @@ export function ChatPage() {
     sendMessage,
     handleKeyDown,
     handleCopy,
-    handleNewChat,
     handleRegenerate,
     openFilePicker,
   } = useChat({

@@ -56,7 +56,7 @@ export function AdminChatPage() {
             Admin Chat
           </h1>
           <div className="w-full max-w-2xl">
-            <div className="relative overflow-hidden">
+            <div className="relative">
               <div className="absolute -inset-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-400/10 blur-xl" />
               <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5">
                 {selectedFiles.length > 0 && (
@@ -183,9 +183,9 @@ export function AdminChatPage() {
             </div>
           </div>
 
-          <div className="shrink-0 px-4 pb-3 pt-2 bg-background overflow-hidden">
+          <div className="shrink-0 px-4 pb-3 pt-2 bg-background">
             <div className="mx-auto max-w-2xl">
-              <div className="relative overflow-hidden">
+              <div className="relative">
                 <div className="absolute -inset-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-400/10 blur-xl" />
                 <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5">
                   {selectedFiles.length > 0 && (

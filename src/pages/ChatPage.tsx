@@ -9,6 +9,7 @@ import {
   Plus,
   X,
   FileText,
+  Settings,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -63,7 +64,7 @@ export function ChatPage() {
 
           <div className="w-full max-w-3xl">
             <div className="relative">
-              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl overflow-hidden" />
+              <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
               <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
                 {selectedFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2 px-2 pt-2 pb-1">
@@ -133,7 +134,14 @@ export function ChatPage() {
         /* Conversation state */
         <>
           {/* Header */}
-          <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-2">
+          <div className="flex shrink-0 items-center justify-between border-b border-white/[0.06] px-4 py-2">
+            <a
+              href="/admin"
+              className="flex items-center gap-2 text-sm text-white/40 hover:text-white/60 transition-colors"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </a>
             <Button
               variant="ghost"
               size="icon"
@@ -166,9 +174,9 @@ export function ChatPage() {
           </div>
 
           {/* Input */}
-          <div className="shrink-0 px-4 pb-4 pt-2 bg-background overflow-hidden">
+          <div className="shrink-0 px-4 pb-4 pt-2 bg-background">
             <div className="mx-auto max-w-3xl">
-              <div className="relative overflow-hidden">
+              <div className="relative">
                 <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
                 <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
                   {selectedFiles.length > 0 && (

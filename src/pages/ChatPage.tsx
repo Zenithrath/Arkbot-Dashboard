@@ -279,7 +279,7 @@ function MessageBubble({
         <Bot className="h-4 w-4 text-white/60" />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="prose prose-invert prose-sm max-w-none leading-relaxed text-white/90">
+        <div className="prose prose-invert prose-sm max-w-none leading-relaxed text-white/90 break-words overflow-wrap-anywhere">
           <ReactMarkdown>{formatContent(message.content)}</ReactMarkdown>
         </div>
         <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">

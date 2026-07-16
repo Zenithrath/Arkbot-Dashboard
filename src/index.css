@@ -151,3 +151,13 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+.break-words {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.prose :where(a):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}

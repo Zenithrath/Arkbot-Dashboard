@@ -222,7 +222,7 @@ export function UploadPage() {
           Click or drag & drop files here
         </p>
         <p className="mt-1 text-xs text-white/30">
-          PDF, Markdown (MD), Excel (XLSX/XLS), Word (DOCX)
+          PDF, MD, XLSX, XLS, DOCX
         </p>
       </div>
 

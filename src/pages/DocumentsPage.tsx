@@ -182,7 +182,7 @@ export function DocumentsPage() {
       await supabase.from("activity_log").insert({
         action: "delete",
         details: `Deleted file: ${file?.file_name}`,
-        user: user?.email,
+        user_email: user?.email,
       })
     } else {
       toast.error("Gagal menghapus file")

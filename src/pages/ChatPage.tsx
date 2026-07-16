@@ -55,20 +55,17 @@ export function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
-      {/* Admin button - always visible */}
-      <div className="absolute top-3 left-3 z-10">
-        <a
-          href="/admin"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/40 hover:text-white/60 hover:bg-white/5 transition-colors"
-        >
-          <Settings className="h-4 w-4" />
-          <span className="hidden sm:inline">Admin</span>
-        </a>
-      </div>
+      {/* Admin button - fixed position */}
+      <a
+        href="/admin"
+        className="fixed top-3 left-3 z-50 flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
+      >
+        <Settings className="h-4 w-4" />
+      </a>
 
       {isEmpty ? (
         /* Welcome state */
-        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden pt-12">
           <h1 className="mb-10 text-center text-3xl font-light text-white/80 sm:text-4xl">
             Siap Anda gunakan kapan saja
           </h1>
@@ -144,20 +141,8 @@ export function ChatPage() {
       ) : (
         /* Conversation state */
         <>
-          {/* Header */}
-          <div className="flex shrink-0 items-center justify-end border-b border-white/[0.06] px-4 py-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-lg text-white/40 hover:text-white/60 hover:bg-white/5"
-              onClick={handleNewChat}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-
           {/* Messages */}
-          <div className="flex-1 min-h-0 overflow-y-auto bg-background scrollbar-hide">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-background scrollbar-hide pt-12">
             <div className="mx-auto max-w-3xl px-4 py-6 space-y-6">
               {messages.map((msg) => (
                 <MessageBubble

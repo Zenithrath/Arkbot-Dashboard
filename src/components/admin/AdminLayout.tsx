@@ -26,18 +26,10 @@ export function AdminLayout() {
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [isMobile, setIsMobile] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
   useWorkflowErrors()
-
-  useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth < 1024)
-    checkMobile()
-    window.addEventListener("resize", checkMobile)
-    return () => window.removeEventListener("resize", checkMobile)
-  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -153,24 +145,21 @@ export function AdminLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden flex flex-col min-w-0">
+      <main className="flex-1 overflow-hidden flex flex-col min-w-0 relative">
+        {/* Mobile hamburger - fixed position */}
+        <button
+          onClick={() => setMobileOpen(true)}
+          className="fixed top-3 left-3 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm lg:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
         {/* Top bar */}
-        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0 relative z-20 bg-[#0a0a0a]">
-          {isMobile && (
-            <button
-              onClick={() => setMobileOpen(true)}
-              className="text-white/60 hover:text-white/80 mr-3"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-          )}
-          {isMobile && (
-            <img
-              src="/logo-arka.png"
-              alt="Arka Logo"
-              className="h-5 w-auto object-contain"
-            />
-          )}
+        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0 relative z-20 bg-[#0a0a0a] lg:pl-4">
+          <img
+            src="/logo-arka.png"
+            alt="Arka Logo"
+            className="h-5 w-auto object-contain hidden lg:block ml-12"
+          />
           <div className="ml-auto">
             <NotificationBell />
           </div>

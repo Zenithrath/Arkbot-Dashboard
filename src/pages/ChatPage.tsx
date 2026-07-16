@@ -63,7 +63,7 @@ export function ChatPage() {
 
       {isEmpty ? (
         /* Welcome state */
-        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden pt-12">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden pt-16">
           <h1 className="mb-10 text-center text-3xl font-light text-white/80 sm:text-4xl">
             Siap Anda gunakan kapan saja
           </h1>
@@ -140,7 +140,7 @@ export function ChatPage() {
         /* Conversation state */
         <>
           {/* Messages */}
-          <div className="flex-1 min-h-0 overflow-y-auto bg-background scrollbar-hide pt-12">
+          <div className="flex-1 min-h-0 overflow-y-auto bg-background scrollbar-hide pt-16">
             <div className="mx-auto max-w-3xl px-4 py-6 space-y-6">
               {messages.map((msg) => (
                 <MessageBubble

@@ -59,7 +59,7 @@ export function AdminChatPage() {
       </button>
 
       {isEmpty ? (
-        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden pt-12">
+        <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden pt-16">
           <h1 className="mb-10 text-center text-2xl font-light text-white/80">
             Admin Chat
           </h1>
@@ -128,7 +128,7 @@ export function AdminChatPage() {
         </div>
       ) : (
         <>
-          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide pt-12">
+          <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide pt-16">
             <div className="mx-auto max-w-2xl px-4 py-4 space-y-4">
               {messages.map((msg) => (
                 <div key={msg.id}>

@@ -164,6 +164,7 @@ export function useChat({
             method: "POST",
             headers: { "x-api-key": apiKey },
             body: formData,
+            signal: AbortSignal.timeout(60000),
           })
         } else {
           res = await fetch(apiEndpoint, {
@@ -173,16 +174,32 @@ export function useChat({
               "x-api-key": apiKey,
             },
             body: JSON.stringify({ message: sanitized, sessionId }),
+            signal: AbortSignal.timeout(60000),
           })
         }
 
         if (!res.ok) {
-          const errorBody = await res.text()
-          console.error("API error response:", res.status, errorBody)
-          throw new Error(`HTTP ${res.status}`)
+          let errorMsg = `Server error (HTTP ${res.status})`
+          try {
+            const errorBody = await res.json()
+            if (errorBody.message || errorBody.error) {
+              errorMsg = errorBody.message || errorBody.error
+            }
+          } catch {
+            try {
+              const textBody = await res.text()
+              if (textBody) errorMsg = textBody.slice(0, 200)
+            } catch {}
+          }
+          console.error("API error response:", res.status, errorMsg)
+          throw new Error(errorMsg)
         }
 
         const data = await res.json()
+        if (data.status === "error" || data.error) {
+          throw new Error(data.message || data.error || "Workflow error")
+        }
+
         const reply =
           data.reply ?? data.response ?? data.message ?? data.answer ?? ""
 
@@ -200,10 +217,19 @@ export function useChat({
         saveChatToSupabase(sessionId, updatedMessages)
       } catch (err) {
         console.error("Chat API error:", err)
+        let detailedError = errorMessage
+        if (err instanceof TypeError && err.message.includes("fetch")) {
+          detailedError = "Server tidak dapat dijangkau. Periksa koneksi internet."
+        } else if (err instanceof DOMException && err.name === "TimeoutError") {
+          detailedError = "Server tidak merespon (timeout). Coba lagi nanti."
+        } else if (err instanceof Error) {
+          detailedError = err.message
+        }
+
         const errorMsg: Message = {
           id: uuidv4(),
           role: "assistant",
-          content: errorMessage,
+          content: detailedError,
           timestamp: Date.now(),
         }
         const updatedMessages = [...messages, userMsg, errorMsg]

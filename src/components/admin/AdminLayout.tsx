@@ -1,35 +1,34 @@
 import { useState, useEffect } from "react"
-import { Outlet, NavLink, useNavigate } from "react-router-dom"
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
+import { useWorkflowErrors } from "@/hooks/useWorkflowErrors"
+import { NotificationBell } from "@/components/NotificationBell"
 import {
-  LayoutDashboard,
   FileText,
   MessageSquare,
   Upload,
-  Users,
-  Activity,
-  History,
   LogOut,
   Loader2,
   ChevronsLeft,
   ChevronsRight,
+  Menu,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navItems = [
-  { to: "/admin/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { to: "/admin/documents", icon: FileText, label: "Documents" },
   { to: "/admin/chat", icon: MessageSquare, label: "Chat" },
   { to: "/admin/upload", icon: Upload, label: "Upload" },
-  { to: "/admin/users", icon: Users, label: "Users" },
-  { to: "/admin/chat-history", icon: History, label: "Chat History" },
-  { to: "/admin/activity", icon: Activity, label: "Activity" },
 ]
 
 export function AdminLayout() {
   const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  useWorkflowErrors()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -40,6 +39,10 @@ export function AdminLayout() {
       }
     })
   }, [navigate])
+
+  useEffect(() => {
+    setMobileOpen(false)
+  }, [location])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -56,23 +59,36 @@ export function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-background">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
         className={cn(
-          "flex flex-col border-r border-white/[0.06] bg-[#131314] transition-all duration-200",
-          collapsed ? "w-[68px]" : "w-64"
+          "flex flex-col border-r border-white/[0.06] bg-[#131314] transition-all duration-200 z-50",
+          "fixed inset-y-0 left-0 lg:relative",
+          collapsed ? "w-[68px]" : "w-64",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
         {/* Header */}
-        <div className="flex h-14 items-center gap-2 border-b border-white/[0.06] px-4">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/10">
-            <FileText className="h-4 w-4 text-white/80" />
-          </div>
-          {!collapsed && (
-            <span className="text-sm font-semibold text-white">
-              ArkBot Admin
-            </span>
-          )}
+        <div className="flex h-14 items-center justify-between border-b border-white/[0.06] px-4">
+          <img
+            src="/logo-arka.png"
+            alt="Arka Logo"
+            className="h-5 w-auto shrink-0 object-contain"
+          />
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden text-white/50 hover:text-white/80"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
 
         {/* Nav */}
@@ -103,7 +119,7 @@ export function AdminLayout() {
           <button
             onClick={() => setCollapsed(!collapsed)}
             className={cn(
-              "flex w-full items-center justify-center gap-3 rounded-lg py-2 text-sm font-medium text-white/40 transition-colors hover:bg-white/5 hover:text-white/60",
+              "hidden lg:flex w-full items-center justify-center gap-3 rounded-lg py-2 text-sm font-medium text-white/40 transition-colors hover:bg-white/5 hover:text-white/60",
               collapsed && "px-0"
             )}
           >
@@ -128,8 +144,22 @@ export function AdminLayout() {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-hidden">
-        <Outlet />
+      <main className="flex-1 overflow-hidden flex flex-col min-w-0">
+        {/* Top bar */}
+        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="lg:hidden text-white/60 hover:text-white/80 mr-3"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
+        </div>
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   )

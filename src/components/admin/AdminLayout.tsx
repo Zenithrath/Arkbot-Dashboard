@@ -155,7 +155,7 @@ export function AdminLayout() {
       {/* Main content */}
       <main className="flex-1 overflow-hidden flex flex-col min-w-0">
         {/* Top bar */}
-        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0">
+        <div className="flex items-center h-14 px-4 border-b border-white/[0.06] shrink-0 relative z-20 bg-[#0a0a0a]">
           {isMobile && (
             <button
               onClick={() => setMobileOpen(true)}

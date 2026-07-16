@@ -49,7 +49,7 @@ export function AdminChatPage() {
   const isEmpty = messages.length === 0
 
   return (
-    <div className="flex h-full flex-col bg-background overflow-hidden">
+    <div className="flex h-full flex-col bg-background overflow-hidden relative">
       {isEmpty ? (
         <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden">
           <h1 className="mb-10 text-center text-2xl font-light text-white/80">

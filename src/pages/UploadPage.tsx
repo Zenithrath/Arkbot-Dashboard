@@ -15,7 +15,7 @@ import { toast } from "sonner"
 const UPLOAD_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/web-upload"
 
-const ALLOWED_EXTENSIONS = [".pdf"]
+const ALLOWED_EXTENSIONS = [".pdf", ".docx", ".xlsx", ".md"]
 
 interface UploadItem {
   id: string
@@ -222,7 +222,7 @@ export function UploadPage() {
           Click or drag & drop files here
         </p>
         <p className="mt-1 text-xs text-white/30">
-          PDF only
+          PDF, DOCX, XLSX, MD
         </p>
       </div>
 

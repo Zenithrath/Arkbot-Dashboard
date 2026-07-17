@@ -39,6 +39,12 @@ import type { RealtimeChannel } from "@supabase/supabase-js"
 const N8N_DELETE_FILE_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/delete-drive"
 
+const N8N_LIST_DRIVE_URL =
+  "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/list-drive-files"
+
+const N8N_DELETE_DRIVE_URL =
+  "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/delete-drive-file"
+
 interface DriveFile {
   id: string
   drive_file_id: string
@@ -46,6 +52,14 @@ interface DriveFile {
   last_modified_time: string
   last_synced_at: string
   status: string
+}
+
+interface DriveCloudFile {
+  id: string
+  name: string
+  mimeType: string
+  size: string
+  modifiedTime: string
 }
 
 const STATUS_OPTIONS = [
@@ -83,6 +97,12 @@ export function DocumentsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DriveFile | null>(null)
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({ all: 0, synced: 0, pending: 0, error: 0 })
+  const [activeTab, setActiveTab] = useState<"database" | "drive">("database")
+  const [driveFiles, setDriveFiles] = useState<DriveCloudFile[]>([])
+  const [driveLoading, setDriveLoading] = useState(false)
+  const [driveSearch, setDriveSearch] = useState("")
+  const [deleteDriveTarget, setDeleteDriveTarget] = useState<DriveCloudFile | null>(null)
+  const [deleteDriveDialogOpen, setDeleteDriveDialogOpen] = useState(false)
 
   const fetchStatusCounts = async () => {
     const [allRes, syncedRes, pendingRes, errorRes] = await Promise.all([
@@ -97,6 +117,57 @@ export function DocumentsPage() {
       pending: pendingRes.count ?? 0,
       error: errorRes.count ?? 0,
     })
+  }
+
+  const fetchDriveFiles = async () => {
+    setDriveLoading(true)
+    try {
+      const res = await fetch(N8N_LIST_DRIVE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(30000),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setDriveFiles(data.files || [])
+    } catch (err) {
+      let message = "Gagal mengambil file dari Google Drive"
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        message = "Timeout - server tidak merespon"
+      } else if (err instanceof Error) {
+        message = err.message
+      }
+      toast.error(message)
+    }
+    setDriveLoading(false)
+  }
+
+  const handleDeleteDriveFile = async (fileId: string, fileName: string) => {
+    try {
+      const res = await fetch(N8N_DELETE_DRIVE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ drive_file_id: fileId }),
+        signal: AbortSignal.timeout(30000),
+      })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json().catch(() => ({}))
+      if (data.status === "error" || data.error) {
+        throw new Error(data.message || data.error || "Gagal menghapus file")
+      }
+      toast.success(`${fileName} berhasil dihapus dari Drive`)
+      setDriveFiles(prev => prev.filter(f => f.id !== fileId))
+    } catch (err) {
+      let message = "Gagal menghapus file dari Drive"
+      if (err instanceof DOMException && err.name === "TimeoutError") {
+        message = "Timeout - server tidak merespon"
+      } else if (err instanceof Error) {
+        message = err.message
+      }
+      toast.error(message)
+    }
+    setDeleteDriveDialogOpen(false)
+    setDeleteDriveTarget(null)
   }
 
   const fetchFiles = async () => {
@@ -130,6 +201,12 @@ export function DocumentsPage() {
     fetchFiles()
     fetchStatusCounts()
   }, [page, search, statusFilter])
+
+  useEffect(() => {
+    if (activeTab === "drive" && driveFiles.length === 0) {
+      fetchDriveFiles()
+    }
+  }, [activeTab])
 
   // Supabase Realtime subscription
   useEffect(() => {
@@ -392,6 +469,43 @@ export function DocumentsPage() {
             <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="mb-4 flex gap-2 border-b border-white/[0.06] pb-2">
+        <button
+          onClick={() => setActiveTab("database")}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+            activeTab === "database"
+              ? "bg-white/10 text-white"
+              : "text-white/40 hover:bg-white/5 hover:text-white/60"
+          )}
+        >
+          <FileText className="h-4 w-4" />
+          Database
+          <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">
+            {statusCounts.all}
+          </span>
+        </button>
+        <button
+          onClick={() => {
+            setActiveTab("drive")
+            if (driveFiles.length === 0) fetchDriveFiles()
+          }}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+            activeTab === "drive"
+              ? "bg-white/10 text-white"
+              : "text-white/40 hover:bg-white/5 hover:text-white/60"
+          )}
+        >
+          <ExternalLink className="h-4 w-4" />
+          Google Drive
+          <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">
+            {driveFiles.length}
+          </span>
+        </button>
       </div>
 
       {/* Search + Filter */}
@@ -659,6 +773,105 @@ export function DocumentsPage() {
         </>
       )}
 
+      {/* Drive Files Table */}
+      {activeTab === "drive" && (
+        driveLoading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+          </div>
+        ) : driveFiles.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <ExternalLink className="mb-3 h-10 w-10 text-white/15" />
+            <p className="text-sm text-white/30">Tidak ada file di Google Drive</p>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[600px]">
+                <thead>
+                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-white/40">
+                      Nama File
+                    </th>
+                    <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
+                      Tipe
+                    </th>
+                    <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
+                      Ukuran
+                    </th>
+                    <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
+                      Terakhir Diubah
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-white/40">
+                      Aksi
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {driveFiles
+                    .filter(f => !driveSearch || f.name.toLowerCase().includes(driveSearch.toLowerCase()))
+                    .map((file) => (
+                    <tr
+                      key={file.id}
+                      className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
+                            <FileText className="h-4 w-4 text-white/30" />
+                          </div>
+                          <p className="truncate text-sm font-medium text-white/90 max-w-[250px]">
+                            {file.name}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="hidden sm:table-cell px-4 py-3 text-xs text-white/40">
+                        PDF
+                      </td>
+                      <td className="hidden md:table-cell px-4 py-3 text-sm text-white/40">
+                        {file.size ? `${(parseInt(file.size) / 1024 / 1024).toFixed(1)} MB` : "—"}
+                      </td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-white/40">
+                        {formatDate(file.modifiedTime)}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-white/30 hover:text-blue-400 hover:bg-blue-400/10"
+                            asChild
+                          >
+                            <a
+                              href={`https://drive.google.com/file/d/${file.id}/view`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-400/10"
+                            onClick={() => {
+                              setDeleteDriveTarget(file)
+                              setDeleteDriveDialogOpen(true)
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      )}
+
       {/* Preview Dialog */}
       <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
         <DialogContent className="bg-zinc-900 border-white/10 text-white">
@@ -846,6 +1059,36 @@ export function DocumentsPage() {
               className="bg-red-600 hover:bg-red-700"
             >
               {deleting === "bulk" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Hapus
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Drive File Dialog */}
+      <AlertDialog open={deleteDriveDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setDeleteDriveDialogOpen(false)
+          setDeleteDriveTarget(null)
+        }
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus dari Google Drive?</AlertDialogTitle>
+            <AlertDialogDescription>
+              File <strong>{deleteDriveTarget?.name}</strong> akan dihapus permanen dari Google Drive.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <Button
+              onClick={() => {
+                if (deleteDriveTarget) {
+                  handleDeleteDriveFile(deleteDriveTarget.id, deleteDriveTarget.name)
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+            >
               Hapus
             </Button>
           </AlertDialogFooter>

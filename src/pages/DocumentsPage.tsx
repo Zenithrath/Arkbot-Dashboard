@@ -55,6 +55,13 @@ const STATUS_OPTIONS = [
   { value: "error", label: "Error" },
 ]
 
+interface StatusCounts {
+  all: number
+  synced: number
+  pending: number
+  error: number
+}
+
 export function DocumentsPage() {
   const [files, setFiles] = useState<DriveFile[]>([])
   const [loading, setLoading] = useState(true)
@@ -75,6 +82,22 @@ export function DocumentsPage() {
   const [deleteFromDrive, setDeleteFromDrive] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DriveFile | null>(null)
+  const [statusCounts, setStatusCounts] = useState<StatusCounts>({ all: 0, synced: 0, pending: 0, error: 0 })
+
+  const fetchStatusCounts = async () => {
+    const [allRes, syncedRes, pendingRes, errorRes] = await Promise.all([
+      supabase.from("drive_file_sync").select("id", { count: "exact", head: true }),
+      supabase.from("drive_file_sync").select("id", { count: "exact", head: true }).eq("status", "synced"),
+      supabase.from("drive_file_sync").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("drive_file_sync").select("id", { count: "exact", head: true }).eq("status", "error"),
+    ])
+    setStatusCounts({
+      all: allRes.count ?? 0,
+      synced: syncedRes.count ?? 0,
+      pending: pendingRes.count ?? 0,
+      error: errorRes.count ?? 0,
+    })
+  }
 
   const fetchFiles = async () => {
     setLoading(true)
@@ -105,6 +128,7 @@ export function DocumentsPage() {
 
   useEffect(() => {
     fetchFiles()
+    fetchStatusCounts()
   }, [page, search, statusFilter])
 
   // Supabase Realtime subscription
@@ -383,21 +407,32 @@ export function DocumentsPage() {
           />
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {STATUS_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => handleStatusFilterChange(opt.value)}
-              className={cn(
-                "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                statusFilter === opt.value
-                  ? "bg-white/10 text-white"
-                  : "text-white/40 hover:bg-white/5 hover:text-white/60"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5 overflow-x-auto">
+          {STATUS_OPTIONS.map((opt) => {
+            const count = statusCounts[opt.value as keyof StatusCounts]
+            return (
+              <button
+                key={opt.value}
+                onClick={() => handleStatusFilterChange(opt.value)}
+                className={cn(
+                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
+                  statusFilter === opt.value
+                    ? "bg-white/10 text-white"
+                    : "text-white/40 hover:bg-white/5 hover:text-white/60"
+                )}
+              >
+                {opt.label}
+                <span className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] min-w-[20px] text-center",
+                  statusFilter === opt.value
+                    ? "bg-white/20 text-white"
+                    : "bg-white/5 text-white/30"
+                )}>
+                  {count}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
 

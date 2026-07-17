@@ -35,12 +35,10 @@ import {
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { RealtimeChannel } from "@supabase/supabase-js"
+import { DriveManager } from "@/components/drive/DriveManager"
 
 const N8N_DELETE_FILE_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/delete-drive"
-
-const N8N_DRIVE_MANAGER_URL =
-  "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/drive-manager"
 
 interface DriveFile {
   id: string
@@ -49,14 +47,6 @@ interface DriveFile {
   last_modified_time: string
   last_synced_at: string
   status: string
-}
-
-interface DriveCloudFile {
-  id: string
-  name: string
-  mimeType: string
-  size: string
-  modifiedTime: string
 }
 
 const STATUS_OPTIONS = [
@@ -95,11 +85,7 @@ export function DocumentsPage() {
   const [deleteTarget, setDeleteTarget] = useState<DriveFile | null>(null)
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({ all: 0, synced: 0, pending: 0, error: 0 })
   const [activeTab, setActiveTab] = useState<"database" | "drive">("database")
-  const [driveFiles, setDriveFiles] = useState<DriveCloudFile[]>([])
-  const [driveLoading, setDriveLoading] = useState(false)
-  const [driveSearch, setDriveSearch] = useState("")
-  const [deleteDriveTarget, setDeleteDriveTarget] = useState<DriveCloudFile | null>(null)
-  const [deleteDriveDialogOpen, setDeleteDriveDialogOpen] = useState(false)
+  const [driveCount, setDriveCount] = useState(0)
 
   const fetchStatusCounts = async () => {
     const [allRes, syncedRes, pendingRes, errorRes] = await Promise.all([
@@ -114,58 +100,6 @@ export function DocumentsPage() {
       pending: pendingRes.count ?? 0,
       error: errorRes.count ?? 0,
     })
-  }
-
-  const fetchDriveFiles = async () => {
-    setDriveLoading(true)
-    try {
-      const res = await fetch(N8N_DRIVE_MANAGER_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "list" }),
-        signal: AbortSignal.timeout(30000),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json()
-      setDriveFiles(data.files || [])
-    } catch (err) {
-      let message = "Gagal mengambil file dari Google Drive"
-      if (err instanceof DOMException && err.name === "TimeoutError") {
-        message = "Timeout - server tidak merespon"
-      } else if (err instanceof Error) {
-        message = err.message
-      }
-      toast.error(message)
-    }
-    setDriveLoading(false)
-  }
-
-  const handleDeleteDriveFile = async (fileId: string, fileName: string) => {
-    try {
-      const res = await fetch(N8N_DRIVE_MANAGER_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "delete", drive_file_id: fileId }),
-        signal: AbortSignal.timeout(30000),
-      })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const data = await res.json().catch(() => ({}))
-      if (data.status === "error" || data.error) {
-        throw new Error(data.message || data.error || "Gagal menghapus file")
-      }
-      toast.success(`${fileName} berhasil dihapus dari Drive`)
-      setDriveFiles(prev => prev.filter(f => f.id !== fileId))
-    } catch (err) {
-      let message = "Gagal menghapus file dari Drive"
-      if (err instanceof DOMException && err.name === "TimeoutError") {
-        message = "Timeout - server tidak merespon"
-      } else if (err instanceof Error) {
-        message = err.message
-      }
-      toast.error(message)
-    }
-    setDeleteDriveDialogOpen(false)
-    setDeleteDriveTarget(null)
   }
 
   const fetchFiles = async () => {
@@ -199,12 +133,6 @@ export function DocumentsPage() {
     fetchFiles()
     fetchStatusCounts()
   }, [page, search, statusFilter])
-
-  useEffect(() => {
-    if (activeTab === "drive" && driveFiles.length === 0) {
-      fetchDriveFiles()
-    }
-  }, [activeTab])
 
   // Supabase Realtime subscription
   useEffect(() => {
@@ -313,6 +241,7 @@ export function DocumentsPage() {
 
     if (!error) {
       setFiles((prev) => prev.filter((f) => f.id !== id))
+      fetchStatusCounts()
       toast.success("File berhasil dihapus")
     } else {
       toast.error("Gagal menghapus file")
@@ -377,6 +306,7 @@ export function DocumentsPage() {
     }
 
     setFiles((prev) => prev.filter((f) => !selectedIds.has(f.id)))
+    fetchStatusCounts()
     if (failCount > 0) {
       toast.error(`${failCount} file gagal dihapus dari Google Drive`)
     }
@@ -401,7 +331,7 @@ export function DocumentsPage() {
   }
 
   const formatDate = (date: string) => {
-    if (!date) return "—"
+    if (!date) return " - "
     return new Date(date).toLocaleDateString("id-ID", {
       day: "numeric",
       month: "short",
@@ -440,11 +370,11 @@ export function DocumentsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Documents</h1>
           <p className="mt-1 text-sm text-white/40">
-            {totalCount} file di Google Drive
+            {activeTab === "database" ? totalCount + " file di database" : driveCount + " file di Google Drive"}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {selectedIds.size > 0 && (
+          {activeTab === "database" && selectedIds.size > 0 && (
             <Button
               onClick={() => setBulkDeleteDialogOpen(true)}
               disabled={deleting === "bulk"}
@@ -458,14 +388,6 @@ export function DocumentsPage() {
               Hapus ({selectedIds.size})
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9 text-white/50 hover:text-white/70 hover:bg-white/5"
-            onClick={fetchFiles}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
@@ -487,10 +409,7 @@ export function DocumentsPage() {
           </span>
         </button>
         <button
-          onClick={() => {
-            setActiveTab("drive")
-            if (driveFiles.length === 0) fetchDriveFiles()
-          }}
+          onClick={() => setActiveTab("drive")}
           className={cn(
             "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
             activeTab === "drive"
@@ -501,374 +420,290 @@ export function DocumentsPage() {
           <ExternalLink className="h-4 w-4" />
           Google Drive
           <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">
-            {driveFiles.length}
+            {driveCount}
           </span>
         </button>
       </div>
 
-      {/* Search + Filter */}
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search by name..."
-            className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25 transition-colors"
-          />
-        </div>
-
-        <div className="flex items-center gap-1.5 overflow-x-auto">
-          {STATUS_OPTIONS.map((opt) => {
-            const count = statusCounts[opt.value as keyof StatusCounts]
-            return (
-              <button
-                key={opt.value}
-                onClick={() => handleStatusFilterChange(opt.value)}
-                className={cn(
-                  "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                  statusFilter === opt.value
-                    ? "bg-white/10 text-white"
-                    : "text-white/40 hover:bg-white/5 hover:text-white/60"
-                )}
-              >
-                {opt.label}
-                <span className={cn(
-                  "rounded-full px-1.5 py-0.5 text-[10px] min-w-[20px] text-center",
-                  statusFilter === opt.value
-                    ? "bg-white/20 text-white"
-                    : "bg-white/5 text-white/30"
-                )}>
-                  {count}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Table */}
-      {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="h-6 w-6 animate-spin text-white/40" />
-        </div>
-      ) : files.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20">
-          <FileText className="mb-3 h-10 w-10 text-white/15" />
-          <p className="text-sm text-white/30">
-            {search || statusFilter !== "all"
-              ? "No files found"
-              : "No files yet"}
-          </p>
-        </div>
-      ) : (
+            {activeTab === "database" && (
         <>
-          <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                    <th className="px-4 py-3 text-left">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.size === files.length && files.length > 0}
-                        onChange={toggleSelectAll}
-                        className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
-                      />
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-white/40">
-                      Key
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-white/40">
-                      Status
-                    </th>
-                    <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
-                      Last Modified
-                    </th>
-                    <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
-                      Last Synced
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-white/40">
-                      Action
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {files.map((file) => (
-                    <tr
-                      key={file.id}
-                      className={cn(
-                        "border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors",
-                        selectedIds.has(file.id) && "bg-white/[0.04]"
-                      )}
-                    >
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(file.id)}
-                          onChange={() => toggleSelect(file.id)}
-                          className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
-                            <FileText className="h-4 w-4 text-white/30" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-white/90 max-w-[200px] md:max-w-[280px]">
-                              {file.file_name}
-                            </p>
-                            <p className="truncate text-xs text-white/30 max-w-[200px] md:max-w-[280px]">
-                              {file.drive_file_id}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={cn(
-                            "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium",
-                            statusColor(file.status)
-                          )}
-                        >
-                          {statusIcon(file.status)}
-                          {file.status}
-                        </span>
-                      </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm text-white/40">
-                        {formatDate(file.last_modified_time)}
-                      </td>
-                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-white/40">
-                        {formatDate(file.last_synced_at)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-white/30 hover:text-blue-400 hover:bg-blue-400/10"
-                            onClick={() => setPreviewFile(file)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-white/30 hover:text-purple-400 hover:bg-purple-400/10"
-                            onClick={() => fetchChunks(file)}
-                          >
-                            <Layers className="h-4 w-4" />
-                          </Button>
-                      <AlertDialog open={deleteDialogOpen && deleteTarget?.id === file.id} onOpenChange={(open) => {
-                        if (!open) {
-                          setDeleteDialogOpen(false)
-                          setDeleteTarget(null)
-                          setDeleteFromDrive(false)
-                        }
-                      }}>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-400/10"
-                            disabled={deleting === file.id}
-                            onClick={() => {
-                              setDeleteTarget(file)
-                              setDeleteDialogOpen(true)
-                            }}
-                          >
-                            {deleting === file.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Hapus File?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              File ini dan dokumen terkait akan dihapus permanen dari database.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <div className="flex items-center gap-2 py-2">
-                            <input
-                              type="checkbox"
-                              id={`drive-delete-${file.id}`}
-                              checked={deleteFromDrive}
-                              onChange={(e) => setDeleteFromDrive(e.target.checked)}
-                              className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
-                            />
-                            <label
-                              htmlFor={`drive-delete-${file.id}`}
-                              className="text-sm text-white/60 cursor-pointer"
-                            >
-                              Hapus juga file dari Google Drive
-                            </label>
-                          </div>
-                          {deleteFromDrive && (
-                            <p className="text-xs text-amber-400/80">
-                              File akan dihapus dari Google Drive dan tidak bisa dikembalikan.
-                            </p>
-                          )}
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Batal</AlertDialogCancel>
-                            <Button
-                              onClick={() => handleDelete(file.id)}
-                              disabled={deleting === file.id}
-                              className="bg-red-600 hover:bg-red-700"
-                            >
-                              {deleting === file.id ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              ) : null}
-                              Hapus
-                            </Button>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* Search + Filter */}
+          <div className="mb-4 flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search by name..."
+                className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25 transition-colors"
+              />
             </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 shrink-0 text-white/50 hover:text-white/70 hover:bg-white/5"
+              onClick={() => { fetchFiles(); fetchStatusCounts(); }}
+            >
+              <RefreshCw className="h-4 w-4" />
+            </Button>
           </div>
 
-          {/* Pagination */}
-          {totalCount > 0 && (
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-xs text-white/30">
-                Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalCount)} of {totalCount}
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs text-white/50 hover:text-white/70 hover:bg-white/5"
-                  disabled={page === 0}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </Button>
-                <span className="text-xs text-white/40">
-                  Page {page + 1} of {Math.ceil(totalCount / pageSize)}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-8 text-xs text-white/50 hover:text-white/70 hover:bg-white/5"
-                  disabled={(page + 1) * pageSize >= totalCount}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
+          <div className="mb-4 flex items-center gap-1.5 overflow-x-auto">
+              {STATUS_OPTIONS.map((opt) => {
+                const count = statusCounts[opt.value as keyof StatusCounts]
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleStatusFilterChange(opt.value)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
+                      statusFilter === opt.value
+                        ? "bg-white/10 text-white"
+                        : "text-white/40 hover:bg-white/5 hover:text-white/60"
+                    )}
+                  >
+                    {opt.label}
+                    <span className={cn(
+                      "rounded-full px-1.5 py-0.5 text-[10px] min-w-[20px] text-center",
+                      statusFilter === opt.value
+                        ? "bg-white/20 text-white"
+                        : "bg-white/5 text-white/30"
+                    )}>
+                      {count}
+                    </span>
+                  </button>
+                )
+              })}
             </div>
+
+          {/* Table */}
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+            </div>
+          ) : files.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <FileText className="mb-3 h-10 w-10 text-white/15" />
+              <p className="text-sm text-white/30">
+                {search || statusFilter !== "all"
+                  ? "No files found"
+                  : "No files yet"}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[600px]">
+                    <thead>
+                      <tr className="border-b border-white/[0.06] bg-white/[0.02]">
+                        <th className="px-4 py-3 text-left">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.size === files.length && files.length > 0}
+                            onChange={toggleSelectAll}
+                            className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
+                          />
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-white/40">
+                          Key
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-white/40">
+                          Status
+                        </th>
+                        <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
+                          Last Modified
+                        </th>
+                        <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
+                          Last Synced
+                        </th>
+                        <th className="px-4 py-3 text-right text-xs font-medium text-white/40">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {files.map((file) => (
+                        <tr
+                          key={file.id}
+                          className={cn(
+                            "border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors",
+                            selectedIds.has(file.id) && "bg-white/[0.04]"
+                          )}
+                        >
+                          <td className="px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={selectedIds.has(file.id)}
+                              onChange={() => toggleSelect(file.id)}
+                              className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
+                            />
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
+                                <FileText className="h-4 w-4 text-white/30" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-white/90 max-w-[200px] md:max-w-[280px]">
+                                  {file.file_name}
+                                </p>
+                                <p className="truncate text-xs text-white/30 max-w-[200px] md:max-w-[280px]">
+                                  {file.drive_file_id}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={cn(
+                                "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium",
+                                statusColor(file.status)
+                              )}
+                            >
+                              {statusIcon(file.status)}
+                              {file.status}
+                            </span>
+                          </td>
+                          <td className="hidden md:table-cell px-4 py-3 text-sm text-white/40">
+                            {formatDate(file.last_modified_time)}
+                          </td>
+                          <td className="hidden lg:table-cell px-4 py-3 text-sm text-white/40">
+                            {formatDate(file.last_synced_at)}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-white/30 hover:text-blue-400 hover:bg-blue-400/10"
+                                onClick={() => setPreviewFile(file)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-white/30 hover:text-purple-400 hover:bg-purple-400/10"
+                                onClick={() => fetchChunks(file)}
+                              >
+                                <Layers className="h-4 w-4" />
+                              </Button>
+                              <AlertDialog open={deleteDialogOpen && deleteTarget?.id === file.id} onOpenChange={(open) => {
+                                if (!open) {
+                                  setDeleteDialogOpen(false)
+                                  setDeleteTarget(null)
+                                  setDeleteFromDrive(false)
+                                }
+                              }}>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-400/10"
+                                    disabled={deleting === file.id}
+                                    onClick={() => {
+                                      setDeleteTarget(file)
+                                      setDeleteDialogOpen(true)
+                                    }}
+                                  >
+                                    {deleting === file.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Hapus File?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      File ini dan dokumen terkait akan dihapus permanen dari database.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <div className="flex items-center gap-2 py-2">
+                                    <input
+                                      type="checkbox"
+                                      id={`drive-delete-${file.id}`}
+                                      checked={deleteFromDrive}
+                                      onChange={(e) => setDeleteFromDrive(e.target.checked)}
+                                      className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
+                                    />
+                                    <label
+                                      htmlFor={`drive-delete-${file.id}`}
+                                      className="text-sm text-white/60 cursor-pointer"
+                                    >
+                                      Hapus juga file dari Google Drive
+                                    </label>
+                                  </div>
+                                  {deleteFromDrive && (
+                                    <p className="text-xs text-amber-400/80">
+                                      File akan dihapus dari Google Drive dan tidak bisa dikembalikan.
+                                    </p>
+                                  )}
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <Button
+                                      onClick={() => handleDelete(file.id)}
+                                      disabled={deleting === file.id}
+                                      className="bg-red-600 hover:bg-red-700"
+                                    >
+                                      {deleting === file.id ? (
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      ) : null}
+                                      Hapus
+                                    </Button>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Pagination */}
+              {totalCount > 0 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-xs text-white/30">
+                    Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalCount)} of {totalCount}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs text-white/50 hover:text-white/70 hover:bg-white/5"
+                      disabled={page === 0}
+                      onClick={() => setPage((p) => p - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span className="text-xs text-white/40">
+                      Page {page + 1} of {Math.ceil(totalCount / pageSize)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-8 text-xs text-white/50 hover:text-white/70 hover:bg-white/5"
+                      disabled={(page + 1) * pageSize >= totalCount}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
 
-      {/* Drive Files Table */}
-      {activeTab === "drive" && (
-        driveLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="h-6 w-6 animate-spin text-white/40" />
-          </div>
-        ) : driveFiles.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <ExternalLink className="mb-3 h-10 w-10 text-white/15" />
-            <p className="text-sm text-white/30">Tidak ada file di Google Drive</p>
-          </div>
-        ) : (
-          <div className="rounded-xl border border-white/[0.06] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[600px]">
-                <thead>
-                  <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-white/40">
-                      Nama File
-                    </th>
-                    <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
-                      Tipe
-                    </th>
-                    <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
-                      Ukuran
-                    </th>
-                    <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
-                      Terakhir Diubah
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-white/40">
-                      Aksi
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {driveFiles
-                    .filter(f => !driveSearch || f.name.toLowerCase().includes(driveSearch.toLowerCase()))
-                    .map((file) => (
-                    <tr
-                      key={file.id}
-                      className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors"
-                    >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
-                            <FileText className="h-4 w-4 text-white/30" />
-                          </div>
-                          <p className="truncate text-sm font-medium text-white/90 max-w-[250px]">
-                            {file.name}
-                          </p>
-                        </div>
-                      </td>
-                      <td className="hidden sm:table-cell px-4 py-3 text-xs text-white/40">
-                        PDF
-                      </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-sm text-white/40">
-                        {file.size ? `${(parseInt(file.size) / 1024 / 1024).toFixed(1)} MB` : "—"}
-                      </td>
-                      <td className="hidden lg:table-cell px-4 py-3 text-sm text-white/40">
-                        {formatDate(file.modifiedTime)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-white/30 hover:text-blue-400 hover:bg-blue-400/10"
-                            asChild
-                          >
-                            <a
-                              href={`https://drive.google.com/file/d/${file.id}/view`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <ExternalLink className="h-4 w-4" />
-                            </a>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-400/10"
-                            onClick={() => {
-                              setDeleteDriveTarget(file)
-                              setDeleteDriveDialogOpen(true)
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )
-      )}
+      {/* Drive Manager Tab */}
+      {activeTab === "drive" && <DriveManager onCount={setDriveCount} />}
 
       {/* Preview Dialog */}
       <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>
@@ -950,7 +785,7 @@ export function DocumentsPage() {
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <Layers className="h-5 w-5 text-purple-400" />
-              Chunks — {chunksFile?.file_name}
+              Chunks - {chunksFile?.file_name}
             </DialogTitle>
             <DialogDescription className="text-white/50">
               RAG document chunks indexed for this file
@@ -1063,35 +898,7 @@ export function DocumentsPage() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Delete Drive File Dialog */}
-      <AlertDialog open={deleteDriveDialogOpen} onOpenChange={(open) => {
-        if (!open) {
-          setDeleteDriveDialogOpen(false)
-          setDeleteDriveTarget(null)
-        }
-      }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Hapus dari Google Drive?</AlertDialogTitle>
-            <AlertDialogDescription>
-              File <strong>{deleteDriveTarget?.name}</strong> akan dihapus permanen dari Google Drive.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Batal</AlertDialogCancel>
-            <Button
-              onClick={() => {
-                if (deleteDriveTarget) {
-                  handleDeleteDriveFile(deleteDriveTarget.id, deleteDriveTarget.name)
-                }
-              }}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Hapus
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      
     </div>
   )
 }

@@ -39,11 +39,8 @@ import type { RealtimeChannel } from "@supabase/supabase-js"
 const N8N_DELETE_FILE_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/delete-drive"
 
-const N8N_LIST_DRIVE_URL =
-  "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/list-drive-files"
-
-const N8N_DELETE_DRIVE_URL =
-  "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/delete-drive-file"
+const N8N_DRIVE_MANAGER_URL =
+  "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/drive-manager"
 
 interface DriveFile {
   id: string
@@ -122,9 +119,10 @@ export function DocumentsPage() {
   const fetchDriveFiles = async () => {
     setDriveLoading(true)
     try {
-      const res = await fetch(N8N_LIST_DRIVE_URL, {
+      const res = await fetch(N8N_DRIVE_MANAGER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
         signal: AbortSignal.timeout(30000),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -144,10 +142,10 @@ export function DocumentsPage() {
 
   const handleDeleteDriveFile = async (fileId: string, fileName: string) => {
     try {
-      const res = await fetch(N8N_DELETE_DRIVE_URL, {
+      const res = await fetch(N8N_DRIVE_MANAGER_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ drive_file_id: fileId }),
+        body: JSON.stringify({ action: "delete", drive_file_id: fileId }),
         signal: AbortSignal.timeout(30000),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)

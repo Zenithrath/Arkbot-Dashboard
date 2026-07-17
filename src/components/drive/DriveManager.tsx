@@ -30,6 +30,7 @@ export function DriveManager({ onCount }: DriveManagerProps) {
   const [deleteDriveDialogOpen, setDeleteDriveDialogOpen] = useState(false)
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [hideDuplicates, setHideDuplicates] = useState(true)
 
   const fetchDriveFiles = async () => {
     setDriveLoading(true)
@@ -44,7 +45,8 @@ export function DriveManager({ onCount }: DriveManagerProps) {
       const data = await res.json()
       const files = data.files || []
       setDriveFiles(files)
-      onCount?.(files.length)
+      const unique = new Set(files.map(f => f.name)).size
+      onCount?.(unique)
     } catch (err) {
       let message = "Gagal mengambil file dari Google Drive"
       if (err instanceof DOMException && err.name === "TimeoutError") {
@@ -150,10 +152,22 @@ export function DriveManager({ onCount }: DriveManagerProps) {
     fetchDriveFiles()
   }, [])
 
-  const filteredFiles = driveFiles.filter((f, idx, arr) =>
-    (!driveSearch || f.name.toLowerCase().includes(driveSearch.toLowerCase())) &&
-    arr.findIndex(x => x.name === f.name) === idx
-  )
+  useEffect(() => {
+    if (hideDuplicates) {
+      const unique = new Set(driveFiles.map(f => f.name)).size
+      onCount?.(unique)
+    } else {
+      onCount?.(driveFiles.length)
+    }
+  }, [hideDuplicates, driveFiles])
+
+  const duplicateCount = driveFiles.length - new Set(driveFiles.map(f => f.name)).size
+
+  const filteredFiles = driveFiles.filter((f, idx, arr) => {
+    if (driveSearch && !f.name.toLowerCase().includes(driveSearch.toLowerCase())) return false
+    if (hideDuplicates && arr.findIndex(x => x.name === f.name) !== idx) return false
+    return true
+  })
 
   const totalPages = Math.ceil(filteredFiles.length / PAGE_SIZE)
   const pagedFiles = filteredFiles.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -204,7 +218,7 @@ export function DriveManager({ onCount }: DriveManagerProps) {
 
   return (
     <>
-      {/* Header with search, refresh, and bulk actions */}
+      {/* Header with search, duplicate filter, refresh, and bulk actions */}
       <div className="mb-4 flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
@@ -216,6 +230,20 @@ export function DriveManager({ onCount }: DriveManagerProps) {
             className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25 transition-colors"
           />
         </div>
+        {duplicateCount > 0 && (
+          <button
+            onClick={() => setHideDuplicates(!hideDuplicates)}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap",
+              hideDuplicates
+                ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
+                : "text-white/40 hover:bg-white/5 hover:text-white/60 border border-white/10"
+            )}
+          >
+            {duplicateCount} duplikat
+            <span className="text-[10px]">{hideDuplicates ? "(sembunyi)" : "(tampil)"}</span>
+          </button>
+        )}
         <Button
           variant="ghost"
           size="icon"

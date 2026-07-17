@@ -36,6 +36,7 @@ import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { DriveManager } from "@/components/drive/DriveManager"
+import { OrphanChunks } from "@/components/drive/OrphanChunks"
 
 const N8N_DELETE_FILE_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/delete-drive"
@@ -84,8 +85,9 @@ export function DocumentsPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DriveFile | null>(null)
   const [statusCounts, setStatusCounts] = useState<StatusCounts>({ all: 0, synced: 0, pending: 0, error: 0 })
-  const [activeTab, setActiveTab] = useState<"database" | "drive">("database")
+  const [activeTab, setActiveTab] = useState<"database" | "drive" | "orphans">("database")
   const [driveCount, setDriveCount] = useState(0)
+  const [orphanCount, setOrphanCount] = useState(0)
 
   const fetchStatusCounts = async () => {
     const [allRes, syncedRes, pendingRes, errorRes] = await Promise.all([
@@ -129,9 +131,21 @@ export function DocumentsPage() {
     setLoading(false)
   }
 
+  const [allDatabaseFileIds, setAllDatabaseFileIds] = useState<Set<string>>(new Set())
+
+  const fetchAllDatabaseFileIds = async () => {
+    const { data } = await supabase
+      .from("drive_file_sync")
+      .select("drive_file_id")
+    if (data) {
+      setAllDatabaseFileIds(new Set(data.map(f => f.drive_file_id).filter(Boolean)))
+    }
+  }
+
   useEffect(() => {
     fetchFiles()
     fetchStatusCounts()
+    fetchAllDatabaseFileIds()
   }, [page, search, statusFilter])
 
   // Supabase Realtime subscription
@@ -370,7 +384,7 @@ export function DocumentsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Documents</h1>
           <p className="mt-1 text-sm text-white/40">
-            {activeTab === "database" ? totalCount + " file di database" : driveCount + " file di Google Drive"}
+            {activeTab === "database" ? totalCount + " file di database" : activeTab === "drive" ? driveCount + " file di Google Drive" : orphanCount + " orphan chunks"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -421,6 +435,24 @@ export function DocumentsPage() {
           Google Drive
           <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">
             {driveCount}
+          </span>
+        </button>
+        <button
+          onClick={() => setActiveTab("orphans")}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+            activeTab === "orphans"
+              ? "bg-white/10 text-white"
+              : "text-white/40 hover:bg-white/5 hover:text-white/60"
+          )}
+        >
+          <Layers className="h-4 w-4" />
+          Orphan Chunks
+          <span className={cn(
+            "rounded-full px-2 py-0.5 text-xs",
+            orphanCount > 0 ? "bg-amber-500/15 text-amber-400" : "bg-white/10"
+          )}>
+            {orphanCount}
           </span>
         </button>
       </div>
@@ -703,7 +735,10 @@ export function DocumentsPage() {
       )}
 
       {/* Drive Manager Tab */}
-      {activeTab === "drive" && <DriveManager onCount={setDriveCount} />}
+      {activeTab === "drive" && <DriveManager onCount={setDriveCount} databaseFileIds={allDatabaseFileIds} />}
+
+      {/* Orphan Chunks Tab */}
+      {activeTab === "orphans" && <OrphanChunks onCount={setOrphanCount} />}
 
       {/* Preview Dialog */}
       <Dialog open={!!previewFile} onOpenChange={(open) => !open && setPreviewFile(null)}>

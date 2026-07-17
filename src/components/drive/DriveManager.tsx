@@ -9,18 +9,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Loader2, Trash2, Search, ExternalLink, FileText, RefreshCw } from "lucide-react"
+import { Loader2, Trash2, Search, ExternalLink, FileText, RefreshCw, AlertTriangle, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { N8N_DRIVE_MANAGER_URL, type DriveCloudFile } from "./types"
 
 interface DriveManagerProps {
   onCount?: (count: number) => void
+  databaseFileIds?: Set<string>
 }
 
 const PAGE_SIZE = 10
 
-export function DriveManager({ onCount }: DriveManagerProps) {
+export function DriveManager({ onCount, databaseFileIds }: DriveManagerProps) {
   const [driveFiles, setDriveFiles] = useState<DriveCloudFile[]>([])
   const [driveLoading, setDriveLoading] = useState(false)
   const [driveSearch, setDriveSearch] = useState("")
@@ -30,7 +31,8 @@ export function DriveManager({ onCount }: DriveManagerProps) {
   const [deleteDriveDialogOpen, setDeleteDriveDialogOpen] = useState(false)
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
-  const [hideDuplicates, setHideDuplicates] = useState(true)
+  const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false)
+  const [showOrphansOnly, setShowOrphansOnly] = useState(false)
 
   const fetchDriveFiles = async () => {
     setDriveLoading(true)
@@ -45,8 +47,7 @@ export function DriveManager({ onCount }: DriveManagerProps) {
       const data = await res.json()
       const files = data.files || []
       setDriveFiles(files)
-      const unique = new Set(files.map(f => f.name)).size
-      onCount?.(unique)
+      onCount?.(files.length)
     } catch (err) {
       let message = "Gagal mengambil file dari Google Drive"
       if (err instanceof DOMException && err.name === "TimeoutError") {
@@ -153,19 +154,26 @@ export function DriveManager({ onCount }: DriveManagerProps) {
   }, [])
 
   useEffect(() => {
-    if (hideDuplicates) {
-      const unique = new Set(driveFiles.map(f => f.name)).size
-      onCount?.(unique)
-    } else {
-      onCount?.(driveFiles.length)
-    }
-  }, [hideDuplicates, driveFiles])
+    onCount?.(filteredFiles.length)
+  }, [showDuplicatesOnly, showOrphansOnly, driveFiles])
 
-  const duplicateCount = driveFiles.length - new Set(driveFiles.map(f => f.name)).size
+  // Count duplicates and orphans
+  const nameCounts = new Map<string, number>()
+  driveFiles.forEach(f => nameCounts.set(f.name, (nameCounts.get(f.name) || 0) + 1))
+  const duplicateNames = new Set<string>()
+  nameCounts.forEach((count, name) => { if (count > 1) duplicateNames.add(name) })
+  const duplicateCount = duplicateNames.size
 
+  const orphanFiles = databaseFileIds
+    ? driveFiles.filter(f => !databaseFileIds.has(f.id))
+    : []
+  const orphanCount = orphanFiles.length
+
+  // Filter logic
   const filteredFiles = driveFiles.filter((f, idx, arr) => {
     if (driveSearch && !f.name.toLowerCase().includes(driveSearch.toLowerCase())) return false
-    if (hideDuplicates && arr.findIndex(x => x.name === f.name) !== idx) return false
+    if (showDuplicatesOnly && !duplicateNames.has(f.name)) return false
+    if (showOrphansOnly && databaseFileIds && databaseFileIds.has(f.id)) return false
     return true
   })
 
@@ -218,9 +226,9 @@ export function DriveManager({ onCount }: DriveManagerProps) {
 
   return (
     <>
-      {/* Header with search, duplicate filter, refresh, and bulk actions */}
-      <div className="mb-4 flex items-center gap-2">
-        <div className="relative flex-1">
+      {/* Header with search, filters, refresh, and bulk actions */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
           <input
             type="text"
@@ -230,20 +238,39 @@ export function DriveManager({ onCount }: DriveManagerProps) {
             className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25 transition-colors"
           />
         </div>
+
+        {/* Duplicate filter */}
         {duplicateCount > 0 && (
           <button
-            onClick={() => setHideDuplicates(!hideDuplicates)}
+            onClick={() => { setShowDuplicatesOnly(!showDuplicatesOnly); setShowOrphansOnly(false); setPage(0); setSelectedIds(new Set()) }}
             className={cn(
               "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap",
-              hideDuplicates
+              showDuplicatesOnly
                 ? "bg-amber-500/15 text-amber-400 border border-amber-500/20"
                 : "text-white/40 hover:bg-white/5 hover:text-white/60 border border-white/10"
             )}
           >
+            <Copy className="h-3 w-3" />
             {duplicateCount} duplikat
-            <span className="text-[10px]">{hideDuplicates ? "(sembunyi)" : "(tampil)"}</span>
           </button>
         )}
+
+        {/* Orphan filter */}
+        {orphanCount > 0 && databaseFileIds && (
+          <button
+            onClick={() => { setShowOrphansOnly(!showOrphansOnly); setShowDuplicatesOnly(false); setPage(0); setSelectedIds(new Set()) }}
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap",
+              showOrphansOnly
+                ? "bg-red-500/15 text-red-400 border border-red-500/20"
+                : "text-white/40 hover:bg-white/5 hover:text-white/60 border border-white/10"
+            )}
+          >
+            <AlertTriangle className="h-3 w-3" />
+            {orphanCount} tanpa database
+          </button>
+        )}
+
         <Button
           variant="ghost"
           size="icon"
@@ -252,6 +279,7 @@ export function DriveManager({ onCount }: DriveManagerProps) {
         >
           <RefreshCw className={cn("h-4 w-4", driveLoading && "animate-spin")} />
         </Button>
+
         {selectedIds.size > 0 && (
           <Button
             onClick={() => setBulkDeleteDialogOpen(true)}
@@ -288,77 +316,101 @@ export function DriveManager({ onCount }: DriveManagerProps) {
                 <th className="hidden sm:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
                   Drive File ID
                 </th>
+                <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
+                  Status
+                </th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-white/40">
                   Aksi
                 </th>
               </tr>
             </thead>
             <tbody>
-              {pagedFiles.map((file) => (
-                <tr
-                  key={file.id}
-                  className={cn(
-                    "border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors",
-                    selectedIds.has(file.id) && "bg-white/[0.04]"
-                  )}
-                >
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(file.id)}
-                      onChange={() => toggleSelect(file.id)}
-                      className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
-                        <FileText className="h-4 w-4 text-white/30" />
+              {pagedFiles.map((file) => {
+                const isDuplicate = duplicateNames.has(file.name)
+                const isOrphan = databaseFileIds ? !databaseFileIds.has(file.id) : false
+                return (
+                  <tr
+                    key={file.id}
+                    className={cn(
+                      "border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors",
+                      selectedIds.has(file.id) && "bg-white/[0.04]",
+                      isOrphan && "bg-red-500/[0.03]"
+                    )}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(file.id)}
+                        onChange={() => toggleSelect(file.id)}
+                        className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5">
+                          <FileText className="h-4 w-4 text-white/30" />
+                        </div>
+                        <p className="truncate text-sm font-medium text-white/90 max-w-[300px]">
+                          {file.name}
+                        </p>
                       </div>
-                      <p className="truncate text-sm font-medium text-white/90 max-w-[300px]">
-                        {file.name}
-                      </p>
-                    </div>
-                  </td>
-                  <td className="hidden sm:table-cell px-4 py-3">
-                    <span className="font-mono text-xs text-white/40">{file.id}</span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-white/30 hover:text-blue-400 hover:bg-blue-400/10"
-                        asChild
-                      >
-                        <a
-                          href={`https://drive.google.com/file/d/${file.id}/view`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-400/10"
-                        disabled={deleting === file.id}
-                        onClick={() => {
-                          setDeleteDriveTarget(file)
-                          setDeleteDriveDialogOpen(true)
-                        }}
-                      >
-                        {deleting === file.id ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
+                    </td>
+                    <td className="hidden sm:table-cell px-4 py-3">
+                      <span className="font-mono text-xs text-white/40">{file.id}</span>
+                    </td>
+                    <td className="hidden md:table-cell px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {isDuplicate && (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                            <Copy className="h-2.5 w-2.5" />
+                            duplikat
+                          </span>
                         )}
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {isOrphan && (
+                          <span className="inline-flex items-center gap-1 rounded-md border border-red-500/20 bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
+                            <AlertTriangle className="h-2.5 w-2.5" />
+                            tanpa DB
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-white/30 hover:text-blue-400 hover:bg-blue-400/10"
+                          asChild
+                        >
+                          <a
+                            href={`https://drive.google.com/file/d/${file.id}/view`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </a>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-white/30 hover:text-red-400 hover:bg-red-400/10"
+                          disabled={deleting === file.id}
+                          onClick={() => {
+                            setDeleteDriveTarget(file)
+                            setDeleteDriveDialogOpen(true)
+                          }}
+                        >
+                          {deleting === file.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

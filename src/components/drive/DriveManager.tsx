@@ -17,11 +17,12 @@ import { N8N_DRIVE_MANAGER_URL, type DriveCloudFile } from "./types"
 interface DriveManagerProps {
   onCount?: (count: number) => void
   databaseFileIds?: Set<string>
+  onDriveIds?: (ids: Set<string>) => void
 }
 
 const PAGE_SIZE = 10
 
-export function DriveManager({ onCount, databaseFileIds }: DriveManagerProps) {
+export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveManagerProps) {
   const [driveFiles, setDriveFiles] = useState<DriveCloudFile[]>([])
   const [driveLoading, setDriveLoading] = useState(false)
   const [driveSearch, setDriveSearch] = useState("")
@@ -48,6 +49,7 @@ export function DriveManager({ onCount, databaseFileIds }: DriveManagerProps) {
       const files = data.files || []
       setDriveFiles(files)
       onCount?.(files.length)
+      onDriveIds?.(new Set(files.map(f => f.id)))
     } catch (err) {
       let message = "Gagal mengambil file dari Google Drive"
       if (err instanceof DOMException && err.name === "TimeoutError") {

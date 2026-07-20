@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
+import { FolderSelector } from "@/components/drive/FolderSelector"
 
 const UPLOAD_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/web-upload"
@@ -28,6 +29,7 @@ export function UploadPage() {
   const [items, setItems] = useState<UploadItem[]>([])
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 })
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const addFiles = (files: FileList | null) => {
@@ -77,6 +79,9 @@ export function UploadPage() {
       try {
         const formData = new FormData()
         formData.append("file", item.file)
+        if (selectedFolderId) {
+          formData.append("folder_id", selectedFolderId)
+        }
 
         const res = await fetch(UPLOAD_URL, {
           method: "POST",
@@ -211,6 +216,11 @@ export function UploadPage() {
             </>
           )}
         </div>
+      </div>
+
+      {/* Folder Selector */}
+      <div className="mb-4">
+        <FolderSelector value={selectedFolderId} onChange={setSelectedFolderId} />
       </div>
 
       {/* Drop zone */}

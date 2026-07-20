@@ -7,4 +7,12 @@ export interface DriveCloudFile {
   mimeType: string
   size: string
   modifiedTime: string
+  kind?: string
+  parents?: string[]
+}
+
+export interface DriveFolder {
+  id: string
+  name: string
+  parents: string[]
 }

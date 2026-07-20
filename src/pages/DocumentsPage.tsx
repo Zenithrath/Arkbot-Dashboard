@@ -51,25 +51,10 @@ interface DriveFile {
   status: string
 }
 
-const STATUS_OPTIONS = [
-  { value: "all", label: "Semua" },
-  { value: "synced", label: "Synced" },
-  { value: "pending", label: "Pending" },
-  { value: "error", label: "Error" },
-]
-
-interface StatusCounts {
-  all: number
-  synced: number
-  pending: number
-  error: number
-}
-
 export function DocumentsPage() {
   const [files, setFiles] = useState<DriveFile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("all")
   const [deleting, setDeleting] = useState<string | null>(null)
   const [previewFile, setPreviewFile] = useState<DriveFile | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
@@ -85,27 +70,11 @@ export function DocumentsPage() {
   const [deleteFromDrive, setDeleteFromDrive] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<DriveFile | null>(null)
-  const [statusCounts, setStatusCounts] = useState<StatusCounts>({ all: 0, synced: 0, pending: 0, error: 0 })
   const [activeTab, setActiveTab] = useState<"database" | "drive" | "orphans">("database")
   const [driveCount, setDriveCount] = useState(0)
   const [orphanCount, setOrphanCount] = useState(0)
   const [driveFileIds, setDriveFileIds] = useState<Set<string>>(new Set())
   const [showWithoutDrive, setShowWithoutDrive] = useState(false)
-
-  const fetchStatusCounts = async () => {
-    const [allRes, syncedRes, pendingRes, errorRes] = await Promise.all([
-      supabase.from("drive_file_sync").select("id", { count: "exact", head: true }),
-      supabase.from("drive_file_sync").select("id", { count: "exact", head: true }).eq("status", "synced"),
-      supabase.from("drive_file_sync").select("id", { count: "exact", head: true }).eq("status", "pending"),
-      supabase.from("drive_file_sync").select("id", { count: "exact", head: true }).eq("status", "error"),
-    ])
-    setStatusCounts({
-      all: allRes.count ?? 0,
-      synced: syncedRes.count ?? 0,
-      pending: pendingRes.count ?? 0,
-      error: errorRes.count ?? 0,
-    })
-  }
 
   const fetchFiles = async () => {
     setLoading(true)
@@ -117,9 +86,6 @@ export function DocumentsPage() {
 
     if (search) {
       query = query.ilike("file_name", `%${search}%`)
-    }
-    if (statusFilter !== "all") {
-      query = query.eq("status", statusFilter)
     }
 
     if (!showWithoutDrive) {
@@ -165,10 +131,9 @@ export function DocumentsPage() {
 
   useEffect(() => {
     fetchFiles()
-    fetchStatusCounts()
     fetchAllDatabaseFileIds()
     fetchDriveFileIds()
-  }, [page, search, statusFilter, showWithoutDrive])
+  }, [page, search, showWithoutDrive])
 
   // Supabase Realtime subscription
   useEffect(() => {
@@ -208,11 +173,6 @@ export function DocumentsPage() {
 
   const handleSearchChange = (value: string) => {
     setSearch(value)
-    setPage(0)
-  }
-
-  const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value)
     setPage(0)
   }
 
@@ -277,7 +237,6 @@ export function DocumentsPage() {
 
     if (!error) {
       setFiles((prev) => prev.filter((f) => f.id !== id))
-      fetchStatusCounts()
       toast.success("File berhasil dihapus")
     } else {
       toast.error("Gagal menghapus file")
@@ -342,7 +301,6 @@ export function DocumentsPage() {
     }
 
     setFiles((prev) => prev.filter((f) => !selectedIds.has(f.id)))
-    fetchStatusCounts()
     if (failCount > 0) {
       toast.error(`${failCount} file gagal dihapus dari Google Drive`)
     }
@@ -441,7 +399,7 @@ export function DocumentsPage() {
           <FileText className="h-4 w-4" />
           Database
           <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">
-            {statusCounts.all}
+            {totalCount}
           </span>
         </button>
         <button
@@ -518,39 +476,11 @@ export function DocumentsPage() {
               variant="ghost"
               size="icon"
               className="h-9 w-9 shrink-0 text-white/50 hover:text-white/70 hover:bg-white/5"
-              onClick={() => { fetchFiles(); fetchStatusCounts(); }}
+              onClick={fetchFiles}
             >
               <RefreshCw className="h-4 w-4" />
             </Button>
           </div>
-
-          <div className="mb-4 flex items-center gap-1.5 overflow-x-auto">
-              {STATUS_OPTIONS.map((opt) => {
-                const count = statusCounts[opt.value as keyof StatusCounts]
-                return (
-                  <button
-                    key={opt.value}
-                    onClick={() => handleStatusFilterChange(opt.value)}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors whitespace-nowrap",
-                      statusFilter === opt.value
-                        ? "bg-white/10 text-white"
-                        : "text-white/40 hover:bg-white/5 hover:text-white/60"
-                    )}
-                  >
-                    {opt.label}
-                    <span className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[10px] min-w-[20px] text-center",
-                      statusFilter === opt.value
-                        ? "bg-white/20 text-white"
-                        : "bg-white/5 text-white/30"
-                    )}>
-                      {count}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
 
           {/* Table */}
           {loading ? (
@@ -561,7 +491,7 @@ export function DocumentsPage() {
             <div className="flex flex-col items-center justify-center py-20">
               <FileText className="mb-3 h-10 w-10 text-white/15" />
               <p className="text-sm text-white/30">
-                {search || statusFilter !== "all" || showWithoutDrive
+                {search || showWithoutDrive
                   ? "No files found"
                   : "No files yet"}
               </p>

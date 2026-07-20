@@ -11,7 +11,7 @@
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2.1,
       "position": [0, 0],
-      "id": "9661f3b0-4497-41fc-960e-161f400f6c57",
+      "id": "9661f3b0",
       "name": "Webhook",
       "webhookId": "7a51dce8-077b-4c93-9b37-6bab12cb3ef7"
     },
@@ -22,9 +22,7 @@
             {
               "conditions": {
                 "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
-                "conditions": [
-                  { "leftValue": "={{ $json.body.action }}", "rightValue": "list", "operator": { "type": "string", "operation": "equals" }, "id": "7e763d43" }
-                ],
+                "conditions": [{ "leftValue": "={{ $json.body.action }}", "rightValue": "list", "operator": { "type": "string", "operation": "equals" }, "id": "7e763d43" }],
                 "combinator": "and"
               },
               "renameOutput": true,
@@ -33,9 +31,7 @@
             {
               "conditions": {
                 "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
-                "conditions": [
-                  { "id": "98765796", "leftValue": "={{ $json.body.action }}", "rightValue": "delete", "operator": { "type": "string", "operation": "equals" } }
-                ],
+                "conditions": [{ "id": "98765796", "leftValue": "={{ $json.body.action }}", "rightValue": "delete", "operator": { "type": "string", "operation": "equals" } }],
                 "combinator": "and"
               },
               "renameOutput": true,
@@ -44,9 +40,7 @@
             {
               "conditions": {
                 "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
-                "conditions": [
-                  { "id": "a1b2c3d4", "leftValue": "={{ $json.body.action }}", "rightValue": "list_folders", "operator": { "type": "string", "operation": "equals" } }
-                ],
+                "conditions": [{ "id": "a1b2c3d4", "leftValue": "={{ $json.body.action }}", "rightValue": "list_folders", "operator": { "type": "string", "operation": "equals" } }],
                 "combinator": "and"
               },
               "renameOutput": true,
@@ -55,9 +49,7 @@
             {
               "conditions": {
                 "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 3 },
-                "conditions": [
-                  { "id": "e5f6g7h8", "leftValue": "={{ $json.body.action }}", "rightValue": "create_folder", "operator": { "type": "string", "operation": "equals" } }
-                ],
+                "conditions": [{ "id": "e5f6g7h8", "leftValue": "={{ $json.body.action }}", "rightValue": "create_folder", "operator": { "type": "string", "operation": "equals" } }],
                 "combinator": "and"
               },
               "renameOutput": true,
@@ -90,6 +82,16 @@
     },
     {
       "parameters": {
+        "jsCode": "const allItems = $input.all();\nconst items = [];\n\nfunction flattenTree(node) {\n  if (node.id && node.mimeType !== 'application/vnd.google-apps.folder') {\n    items.push({ json: { id: node.id, name: node.name, mimeType: node.mimeType, parents: node.parents || [] } });\n  }\n  if (node.children && Array.isArray(node.children)) {\n    for (const child of node.children) {\n      flattenTree(child);\n    }\n  }\n}\n\nfor (const item of allItems) {\n  flattenTree(item.json);\n}\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [656, -80],
+      "id": "d27b00a5",
+      "name": "Flatten Tree"
+    },
+    {
+      "parameters": {
         "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}?fields=id,name,mimeType,modifiedTime,size,parents",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "googleDriveOAuth2Api",
@@ -97,7 +99,7 @@
       },
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
-      "position": [656, -80],
+      "position": [864, -80],
       "id": "d27b00a4",
       "name": "Get File Metadata",
       "credentials": {
@@ -106,11 +108,11 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst files = items\n  .filter(item => item.json.mimeType !== 'application/vnd.google-apps.folder')\n  .map(item => ({\n    id: item.json.id,\n    name: item.json.name,\n    mimeType: item.json.mimeType,\n    modifiedTime: item.json.modifiedTime || '',\n    size: item.json.size || '',\n    parents: item.json.parents || []\n  }));\nreturn [{ json: { files } }];"
+        "jsCode": "const items = $input.all();\nconst files = items.map(item => ({\n  id: item.json.id,\n  name: item.json.name,\n  mimeType: item.json.mimeType,\n  modifiedTime: item.json.modifiedTime || '',\n  size: item.json.size || '',\n  parents: item.json.parents || []\n}));\nreturn [{ json: { files } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [864, -80],
+      "position": [1072, -80],
       "id": "d27b00a3",
       "name": "Format Files Response"
     },
@@ -122,18 +124,14 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [1072, -80],
+      "position": [1280, -80],
       "id": "dd95d511",
       "name": "Respond to Webhook"
     },
     {
       "parameters": {
         "operation": "deleteFile",
-        "fileId": {
-          "__rl": true,
-          "value": "={{ $('Webhook').item.json.body.drive_file_id }}",
-          "mode": "id"
-        },
+        "fileId": { "__rl": true, "value": "={{ $('Webhook').item.json.body.drive_file_id }}", "mode": "id" },
         "options": {}
       },
       "type": "n8n-nodes-base.googleDrive",
@@ -141,17 +139,11 @@
       "position": [448, 48],
       "id": "97fa5f62",
       "name": "Delete a file",
-      "credentials": {
-        "googleDriveOAuth2Api": { "id": "oKniVbvcRo8IJjd3", "name": "Google Drive account" }
-      }
+      "credentials": { "googleDriveOAuth2Api": { "id": "oKniVbvcRo8IJjd3", "name": "Google Drive account" } }
     },
     {
       "parameters": {
-        "assignments": {
-          "assignments": [
-            { "id": "95f35547", "name": "success", "value": true, "type": "boolean" }
-          ]
-        },
+        "assignments": { "assignments": [{ "id": "95f35547", "name": "success", "value": true, "type": "boolean" }] },
         "options": {}
       },
       "type": "n8n-nodes-base.set",
@@ -161,11 +153,7 @@
       "name": "Edit Fields"
     },
     {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {}
-      },
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}", "options": {} },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [864, 48],
@@ -176,13 +164,7 @@
       "parameters": {
         "resource": "fileFolder",
         "returnAll": true,
-        "filter": {
-          "folderId": {
-            "__rl": true,
-            "value": "={{ $('Webhook').item.json.body.parent_id || '1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj' }}",
-            "mode": "id"
-          }
-        },
+        "filter": { "folderId": { "__rl": true, "value": "={{ $('Webhook').item.json.body.parent_id || '1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj' }}", "mode": "id" } },
         "options": {}
       },
       "type": "n8n-nodes-base.googleDrive",
@@ -190,13 +172,11 @@
       "position": [448, 180],
       "id": "f1a2b3c4",
       "name": "List Folders Drive",
-      "credentials": {
-        "googleDriveOAuth2Api": { "id": "oKniVbvcRo8IJjd3", "name": "Google Drive account" }
-      }
+      "credentials": { "googleDriveOAuth2Api": { "id": "oKniVbvcRo8IJjd3", "name": "Google Drive account" } }
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst extensions = ['.pdf','.docx','.xlsx','.doc','.xls','.pptx','.txt','.md','.csv','.jpg','.jpeg','.png','.gif','.zip','.rar'];\nconst folders = items\n  .filter(item => {\n    const name = (item.json.name || '').toLowerCase();\n    return !extensions.some(ext => name.endsWith(ext));\n  })\n  .map(item => ({\n    id: item.json.id,\n    name: item.json.name,\n    parents: item.json.parents || []\n  }));\nreturn [{ json: { folders } }];"
+        "jsCode": "const items = $input.all();\nconst extensions = ['.pdf','.docx','.xlsx','.doc','.xls','.pptx','.txt','.md','.csv','.jpg','.jpeg','.png','.gif','.zip','.rar'];\nconst folders = items\n  .filter(item => {\n    const name = (item.json.name || '').toLowerCase();\n    return !extensions.some(ext => name.endsWith(ext));\n  })\n  .map(item => ({ id: item.json.id, name: item.json.name, parents: item.json.parents || [] }));\nreturn [{ json: { folders } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -205,11 +185,7 @@
       "name": "Format Folders Response"
     },
     {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {}
-      },
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}", "options": {} },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [864, 180],
@@ -232,13 +208,11 @@
       "position": [448, 320],
       "id": "f1a2b3c6",
       "name": "Create Folder HTTP",
-      "credentials": {
-        "googleDriveOAuth2Api": { "id": "oKniVbvcRo8IJjd3", "name": "Google Drive account" }
-      }
+      "credentials": { "googleDriveOAuth2Api": { "id": "oKniVbvcRo8IJjd3", "name": "Google Drive account" } }
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nreturn [{ json: {\n  id: data.id,\n  name: data.name,\n  parents: data.parents || []\n} }];"
+        "jsCode": "const data = $input.first().json;\nreturn [{ json: { id: data.id, name: data.name, parents: data.parents || [] } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -247,11 +221,7 @@
       "name": "Format Created Response"
     },
     {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($json) }}",
-        "options": {}
-      },
+      "parameters": { "respondWith": "json", "responseBody": "={{ JSON.stringify($json) }}", "options": {} },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
       "position": [864, 320],
@@ -270,7 +240,8 @@
         [{ "node": "Create Folder HTTP", "type": "main", "index": 0 }]
       ]
     },
-    "List All Files Recursive": { "main": [[{ "node": "Get File Metadata", "type": "main", "index": 0 }]] },
+    "List All Files Recursive": { "main": [[{ "node": "Flatten Tree", "type": "main", "index": 0 }]] },
+    "Flatten Tree": { "main": [[{ "node": "Get File Metadata", "type": "main", "index": 0 }]] },
     "Get File Metadata": { "main": [[{ "node": "Format Files Response", "type": "main", "index": 0 }]] },
     "Format Files Response": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
     "Delete a file": { "main": [[{ "node": "Edit Fields", "type": "main", "index": 0 }]] },

@@ -35,9 +35,10 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
   const [deleting, setDeleting] = useState<string | null>(null)
   const [showDuplicatesOnly, setShowDuplicatesOnly] = useState(false)
   const [showOrphansOnly, setShowOrphansOnly] = useState(false)
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null)
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>("1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj")
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([
-    { id: null, name: "Root" }
+    { id: null, name: "Root" },
+    { id: "1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj", name: "Arkbot Library" }
   ])
   const [creatingFolder, setCreatingFolder] = useState(false)
   const [newFolderName, setNewFolderName] = useState("")

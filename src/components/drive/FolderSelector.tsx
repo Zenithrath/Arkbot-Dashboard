@@ -15,9 +15,10 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [newFolderName, setNewFolderName] = useState("")
-  const [currentParentId, setCurrentParentId] = useState<string | null>(null)
+  const [currentParentId, setCurrentParentId] = useState<string | null>("1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj")
   const [breadcrumbs, setBreadcrumbs] = useState<{ id: string | null; name: string }[]>([
-    { id: null, name: "Root" }
+    { id: null, name: "Root" },
+    { id: "1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj", name: "Arkbot Library" }
   ])
   const [expanded, setExpanded] = useState(false)
 

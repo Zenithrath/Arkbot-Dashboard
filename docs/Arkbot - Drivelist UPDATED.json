@@ -75,37 +75,28 @@
     },
     {
       "parameters": {
-        "url": "https://www.googleapis.com/drive/v3/files",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "googleDriveOAuth2Api",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            { "name": "q", "value": "='1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj' in parents and trashed = false" },
-            { "name": "fields", "value": "nextPageToken,files(id,name,mimeType,modifiedTime,parents)" },
-            { "name": "pageSize", "value": "1000" }
-          ]
-        },
+        "folderId": "1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj",
+        "recursive": true,
         "options": {}
       },
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-google-drive-recursive.googleDriveRecursive",
+      "typeVersion": 1,
       "position": [448, -80],
       "id": "d27b00a2",
-      "name": "List All Files",
+      "name": "List All Files Recursive",
       "credentials": {
         "googleDriveOAuth2Api": { "id": "oKniVbvcRo8IJjd3", "name": "Google Drive account" }
       }
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst files = (data.files || []).filter(f => f.mimeType !== 'application/vnd.google-apps.folder');\nreturn [{ json: { files } }];"
+        "jsCode": "const items = $input.all();\nconst files = items\n  .filter(item => item.json.mimeType !== 'application/vnd.google-apps.folder')\n  .map(item => ({\n    id: item.json.id,\n    name: item.json.name,\n    mimeType: item.json.mimeType,\n    modifiedTime: item.json.modifiedTime,\n    size: item.json.size || '',\n    parents: item.json.parents || []\n  }));\nreturn [{ json: { files } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [656, -80],
       "id": "d27b00a3",
-      "name": "Filter Files Only"
+      "name": "Format Files Response"
     },
     {
       "parameters": {
@@ -221,14 +212,14 @@
     "Webhook": { "main": [[{ "node": "Switch", "type": "main", "index": 0 }]] },
     "Switch": {
       "main": [
-        [{ "node": "List All Files", "type": "main", "index": 0 }],
+        [{ "node": "List All Files Recursive", "type": "main", "index": 0 }],
         [{ "node": "Delete a file", "type": "main", "index": 0 }],
         [{ "node": "List Folders Drive", "type": "main", "index": 0 }],
         [{ "node": "Create Folder HTTP", "type": "main", "index": 0 }]
       ]
     },
-    "List All Files": { "main": [[{ "node": "Filter Files Only", "type": "main", "index": 0 }]] },
-    "Filter Files Only": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
+    "List All Files Recursive": { "main": [[{ "node": "Format Files Response", "type": "main", "index": 0 }]] },
+    "Format Files Response": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
     "Delete a file": { "main": [[{ "node": "Edit Fields", "type": "main", "index": 0 }]] },
     "Edit Fields": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
     "List Folders Drive": { "main": [[{ "node": "Format Folders Response", "type": "main", "index": 0 }]] },

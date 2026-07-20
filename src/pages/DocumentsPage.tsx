@@ -88,6 +88,8 @@ export function DocumentsPage() {
   const [activeTab, setActiveTab] = useState<"database" | "drive" | "orphans">("database")
   const [driveCount, setDriveCount] = useState(0)
   const [orphanCount, setOrphanCount] = useState(0)
+  const [driveFileIds, setDriveFileIds] = useState<Set<string>>(new Set())
+  const [showWithoutDrive, setShowWithoutDrive] = useState(false)
 
   const fetchStatusCounts = async () => {
     const [allRes, syncedRes, pendingRes, errorRes] = await Promise.all([
@@ -447,7 +449,7 @@ export function DocumentsPage() {
           )}
         >
           <Layers className="h-4 w-4" />
-          Chunks
+          Orphan Chunks
           <span className={cn(
             "rounded-full px-2 py-0.5 text-xs",
             orphanCount > 0 ? "bg-amber-500/15 text-amber-400" : "bg-white/10"
@@ -457,7 +459,12 @@ export function DocumentsPage() {
         </button>
       </div>
 
-            {activeTab === "database" && (
+            {activeTab === "database" && (() => {
+              const displayedFiles = showWithoutDrive
+                ? files.filter(f => f.drive_file_id && !driveFileIds.has(f.drive_file_id))
+                : files
+              const withoutDriveCount = files.filter(f => f.drive_file_id && !driveFileIds.has(f.drive_file_id)).length
+              return (
         <>
           {/* Search + Filter */}
           <div className="mb-4 flex items-center gap-2">
@@ -471,6 +478,22 @@ export function DocumentsPage() {
                 className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25 transition-colors"
               />
             </div>
+
+            {driveFileIds.size > 0 && withoutDriveCount > 0 && (
+              <button
+                onClick={() => setShowWithoutDrive(!showWithoutDrive)}
+                className={cn(
+                  "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap",
+                  showWithoutDrive
+                    ? "bg-red-500/15 text-red-400 border border-red-500/20"
+                    : "text-white/40 hover:bg-white/5 hover:text-white/60 border border-white/10"
+                )}
+              >
+                <AlertCircle className="h-3 w-3" />
+                {withoutDriveCount} tanpa Drive
+              </button>
+            )}
+
             <Button
               variant="ghost"
               size="icon"
@@ -514,11 +537,11 @@ export function DocumentsPage() {
             <div className="flex items-center justify-center py-20">
               <Loader2 className="h-6 w-6 animate-spin text-white/40" />
             </div>
-          ) : files.length === 0 ? (
+          ) : displayedFiles.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20">
               <FileText className="mb-3 h-10 w-10 text-white/15" />
               <p className="text-sm text-white/30">
-                {search || statusFilter !== "all"
+                {search || statusFilter !== "all" || showWithoutDrive
                   ? "No files found"
                   : "No files yet"}
               </p>
@@ -533,7 +556,7 @@ export function DocumentsPage() {
                         <th className="px-4 py-3 text-left">
                           <input
                             type="checkbox"
-                            checked={selectedIds.size === files.length && files.length > 0}
+                            checked={selectedIds.size === displayedFiles.length && displayedFiles.length > 0}
                             onChange={toggleSelectAll}
                             className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
                           />
@@ -556,12 +579,15 @@ export function DocumentsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {files.map((file) => (
+                      {displayedFiles.map((file) => {
+                        const hasNoDrive = file.drive_file_id && !driveFileIds.has(file.drive_file_id)
+                        return (
                         <tr
                           key={file.id}
                           className={cn(
                             "border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors",
-                            selectedIds.has(file.id) && "bg-white/[0.04]"
+                            selectedIds.has(file.id) && "bg-white/[0.04]",
+                            hasNoDrive && "bg-red-500/[0.03]"
                           )}
                         >
                           <td className="px-4 py-3">
@@ -597,6 +623,12 @@ export function DocumentsPage() {
                               {statusIcon(file.status)}
                               {file.status}
                             </span>
+                            {hasNoDrive && (
+                              <span className="ml-1.5 inline-flex items-center gap-1 rounded-md border border-red-500/20 bg-red-500/15 px-1.5 py-0.5 text-[10px] font-medium text-red-400">
+                                <AlertCircle className="h-2.5 w-2.5" />
+                                tanpa Drive
+                              </span>
+                            )}
                           </td>
                           <td className="hidden md:table-cell px-4 py-3 text-sm text-white/40">
                             {formatDate(file.last_modified_time)}
@@ -692,7 +724,7 @@ export function DocumentsPage() {
                             </div>
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 </div>
@@ -732,10 +764,9 @@ export function DocumentsPage() {
             </>
           )}
         </>
-      )}
-
+      )})()}
       {/* Drive Manager Tab */}
-      {activeTab === "drive" && <DriveManager onCount={setDriveCount} databaseFileIds={allDatabaseFileIds} />}
+      {activeTab === "drive" && <DriveManager onCount={setDriveCount} databaseFileIds={allDatabaseFileIds} onDriveIds={setDriveFileIds} />}
 
       {/* Orphan Chunks Tab */}
       {activeTab === "orphans" && <OrphanChunks onCount={setOrphanCount} />}

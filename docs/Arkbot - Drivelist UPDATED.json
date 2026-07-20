@@ -90,13 +90,41 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all();\nconst files = items\n  .filter(item => item.json.mimeType !== 'application/vnd.google-apps.folder')\n  .map(item => ({\n    id: item.json.id,\n    name: item.json.name,\n    mimeType: item.json.mimeType,\n    modifiedTime: item.json.modifiedTime,\n    size: item.json.size || '',\n    parents: item.json.parents || []\n  }));\nreturn [{ json: { files } }];"
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.id }}?fields=id,name,mimeType,modifiedTime,size,parents",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [656, -80],
+      "id": "d27b00a4",
+      "name": "Get File Metadata",
+      "credentials": {
+        "googleDriveOAuth2Api": { "id": "oKniVbvcRo8IJjd3", "name": "Google Drive account" }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst files = items\n  .filter(item => item.json.mimeType !== 'application/vnd.google-apps.folder')\n  .map(item => ({\n    id: item.json.id,\n    name: item.json.name,\n    mimeType: item.json.mimeType,\n    modifiedTime: item.json.modifiedTime || '',\n    size: item.json.size || '',\n    parents: item.json.parents || []\n  }));\nreturn [{ json: { files } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [656, -80],
+      "position": [864, -80],
       "id": "d27b00a3",
       "name": "Format Files Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [1072, -80],
+      "id": "dd95d511",
+      "name": "Respond to Webhook"
     },
     {
       "parameters": {
@@ -140,9 +168,9 @@
       },
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.5,
-      "position": [864, -16],
-      "id": "dd95d511",
-      "name": "Respond to Webhook"
+      "position": [864, 48],
+      "id": "dd95d512",
+      "name": "Respond to Webhook Delete"
     },
     {
       "parameters": {
@@ -178,6 +206,18 @@
     },
     {
       "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [864, 180],
+      "id": "dd95d513",
+      "name": "Respond to Webhook Folders"
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://www.googleapis.com/drive/v3/files",
         "authentication": "predefinedCredentialType",
@@ -205,6 +245,18 @@
       "position": [656, 320],
       "id": "f1a2b3c7",
       "name": "Format Created Response"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [864, 320],
+      "id": "dd95d514",
+      "name": "Respond to Webhook Create"
     }
   ],
   "pinData": {},
@@ -218,14 +270,15 @@
         [{ "node": "Create Folder HTTP", "type": "main", "index": 0 }]
       ]
     },
-    "List All Files Recursive": { "main": [[{ "node": "Format Files Response", "type": "main", "index": 0 }]] },
+    "List All Files Recursive": { "main": [[{ "node": "Get File Metadata", "type": "main", "index": 0 }]] },
+    "Get File Metadata": { "main": [[{ "node": "Format Files Response", "type": "main", "index": 0 }]] },
     "Format Files Response": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
     "Delete a file": { "main": [[{ "node": "Edit Fields", "type": "main", "index": 0 }]] },
-    "Edit Fields": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
+    "Edit Fields": { "main": [[{ "node": "Respond to Webhook Delete", "type": "main", "index": 0 }]] },
     "List Folders Drive": { "main": [[{ "node": "Format Folders Response", "type": "main", "index": 0 }]] },
-    "Format Folders Response": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] },
+    "Format Folders Response": { "main": [[{ "node": "Respond to Webhook Folders", "type": "main", "index": 0 }]] },
     "Create Folder HTTP": { "main": [[{ "node": "Format Created Response", "type": "main", "index": 0 }]] },
-    "Format Created Response": { "main": [[{ "node": "Respond to Webhook", "type": "main", "index": 0 }]] }
+    "Format Created Response": { "main": [[{ "node": "Respond to Webhook Create", "type": "main", "index": 0 }]] }
   },
   "active": false,
   "settings": { "executionOrder": "v1", "binaryMode": "separate" }

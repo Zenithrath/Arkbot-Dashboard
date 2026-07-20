@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+﻿import { useState, useRef } from "react"
 import { v4 as uuidv4 } from "uuid"
 import {
   Upload,
@@ -27,6 +27,7 @@ interface UploadItem {
 export function UploadPage() {
   const [items, setItems] = useState<UploadItem[]>([])
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 })
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const addFiles = (files: FileList | null) => {
@@ -58,12 +59,15 @@ export function UploadPage() {
     if (pending.length === 0) return
 
     setUploading(true)
+    setUploadProgress({ current: 0, total: pending.length })
 
     let batchSuccess = 0
     let batchFailed = 0
     const failedFiles: string[] = []
 
-    for (const item of pending) {
+    for (let idx = 0; idx < pending.length; idx++) {
+      const item = pending[idx]
+      setUploadProgress({ current: idx + 1, total: pending.length })
       setItems((prev) =>
         prev.map((i) =>
           i.id === item.id ? { ...i, status: "uploading" } : i
@@ -77,7 +81,7 @@ export function UploadPage() {
         const res = await fetch(UPLOAD_URL, {
           method: "POST",
           body: formData,
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(60000),
         })
 
         if (!res.ok) {
@@ -93,27 +97,23 @@ export function UploadPage() {
 
         const data = await res.json().catch(() => ({}))
 
-        // Log response for debugging
-        console.log(`Upload response for ${item.file.name}:`, data)
-
-        // Detect errors from various response formats
         const hasError =
           data.status === "error" ||
           data.status === "failed" ||
           data.success === false ||
           data.error ||
-          data.message?.toLowerCase().includes("error") ||
-          data.message?.toLowerCase().includes("gagal") ||
           data.error_message ||
-          data.err
+          data.err ||
+          (typeof data.message === "string" && (
+            data.message.toLowerCase().includes("error") ||
+            data.message.toLowerCase().includes("gagal") ||
+            data.message.toLowerCase().includes("fail")
+          ))
 
         if (hasError) {
           const errorMsg = data.error || data.message || data.error_message || data.err || "Workflow error"
           throw new Error(typeof errorMsg === "string" ? errorMsg : "Workflow error")
         }
-
-        // If response is empty or no clear success indicator, still count as success
-        // (n8n might not return a body on success)
 
         setItems((prev) =>
           prev.map((i) =>
@@ -145,6 +145,7 @@ export function UploadPage() {
       }
     }
 
+    setUploadProgress({ current: 0, total: 0 })
     setUploading(false)
 
     if (batchSuccess > 0 && batchFailed === 0) {
@@ -173,36 +174,43 @@ export function UploadPage() {
             Upload files to Google Drive via n8n workflow
           </p>
         </div>
-        {items.length > 0 && (
-          <div className="flex items-center gap-2">
-            {successCount > 0 && (
+        <div className="flex items-center gap-2">
+          {uploading && uploadProgress.total > 0 && (
+            <span className="text-sm text-orange-400 font-medium">
+              {uploadProgress.current}/{uploadProgress.total}
+            </span>
+          )}
+          {items.length > 0 && (
+            <>
+              {successCount > 0 && !uploading && (
+                <Button
+                  variant="ghost"
+                  onClick={clearCompleted}
+                  className="rounded-xl text-sm text-white/40 hover:text-white/60"
+                >
+                  Clear completed
+                </Button>
+              )}
               <Button
-                variant="ghost"
-                onClick={clearCompleted}
-                className="rounded-xl text-sm text-white/40 hover:text-white/60"
+                disabled={pendingCount === 0 || uploading}
+                onClick={uploadAll}
+                className={cn(
+                  "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
+                  pendingCount > 0 && !uploading
+                    ? "bg-orange-500 text-white hover:bg-orange-400"
+                    : "bg-white/5 text-white/30 cursor-not-allowed"
+                )}
               >
-                Clear completed
+                {uploading ? (
+                  <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 inline h-4 w-4" />
+                )}
+                Upload{pendingCount > 0 ? ` (${pendingCount})` : ""}
               </Button>
-            )}
-            <Button
-              disabled={pendingCount === 0 || uploading}
-              onClick={uploadAll}
-              className={cn(
-                "rounded-xl px-4 py-2 text-sm font-medium transition-colors",
-                pendingCount > 0 && !uploading
-                  ? "bg-orange-500 text-white hover:bg-orange-400"
-                  : "bg-white/5 text-white/30 cursor-not-allowed"
-              )}
-            >
-              {uploading ? (
-                <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
-              ) : (
-                <Upload className="mr-2 inline h-4 w-4" />
-              )}
-              Upload{pendingCount > 0 ? ` (${pendingCount})` : ""}
-            </Button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Drop zone */}

@@ -41,6 +41,7 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
     const { data, error } = await supabase
       .from("documents")
       .select("*")
+      .or("metadata->>file_name.is.null,metadata->>file_name.eq.,metadata->>drive_file_id.is.null,metadata->>drive_file_id.eq.")
       .order("created_at", { ascending: false })
 
     if (!error && data) {
@@ -124,8 +125,8 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Layers className="mb-3 h-10 w-10 text-white/15" />
-        <p className="text-sm text-white/30">Tidak ada chunks</p>
-        <p className="mt-1 text-xs text-white/20">Upload file dan tunggu workflow selesai</p>
+        <p className="text-sm text-white/30">Tidak ada orphan chunks</p>
+        <p className="mt-1 text-xs text-white/20">Semua chunk punya file_name dan drive_file_id</p>
       </div>
     )
   }

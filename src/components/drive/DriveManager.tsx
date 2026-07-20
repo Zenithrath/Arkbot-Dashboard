@@ -46,7 +46,7 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      const files = (data.files || []).sort((a: DriveCloudFile, b: DriveCloudFile) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
+      const files = (data.files || []).sort((a: DriveCloudFile, b: DriveCloudFile) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
       setDriveFiles(files)
       onCount?.(files.length)
       onDriveIds?.(new Set(files.map((f: DriveCloudFile) => f.id)))

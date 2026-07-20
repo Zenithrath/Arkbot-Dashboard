@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Loader2, Trash2, Search, AlertTriangle, Layers } from "lucide-react"
+import { Loader2, Trash2, Search, AlertTriangle, Layers, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -36,12 +36,11 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const fetchOrphanChunks = async () => {
+  const fetchChunks = async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from("documents")
       .select("*")
-      .or("metadata->>drive_file_id.is.null,metadata->>drive_file_id.eq.")
       .order("created_at", { ascending: false })
 
     if (!error && data) {
@@ -62,8 +61,11 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
       .in("id", Array.from(selectedIds))
 
     if (!error) {
-      setChunks(prev => prev.filter(c => !selectedIds.has(c.id)))
-      onCount?.(chunks.length - selectedIds.size)
+      setChunks(prev => {
+        const next = prev.filter(c => !selectedIds.has(c.id))
+        onCount?.(next.length)
+        return next
+      })
       toast.success(`${selectedIds.size} chunk berhasil dihapus`)
     } else {
       toast.error("Gagal menghapus chunk")
@@ -73,13 +75,17 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
   }
 
   useEffect(() => {
-    fetchOrphanChunks()
+    fetchChunks()
   }, [])
 
   const filteredChunks = chunks.filter(c => {
     if (!search) return true
-    return c.content?.toLowerCase().includes(search.toLowerCase()) ||
-           c.metadata?.file_name?.toLowerCase().includes(search.toLowerCase())
+    const q = search.toLowerCase()
+    const fileName = c.metadata?.file_name || ""
+    const driveFileId = c.metadata?.drive_file_id || ""
+    return c.content?.toLowerCase().includes(q) ||
+           fileName.toLowerCase().includes(q) ||
+           driveFileId.toLowerCase().includes(q)
   })
 
   const totalPages = Math.ceil(filteredChunks.length / PAGE_SIZE)
@@ -102,6 +108,10 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
     }
   }
 
+  const getFileName = (chunk: OrphanChunk) => chunk.metadata?.file_name || "—"
+  const getDriveFileId = (chunk: OrphanChunk) => chunk.metadata?.drive_file_id || ""
+  const isOrphan = (chunk: OrphanChunk) => !chunk.metadata?.drive_file_id
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -114,8 +124,8 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
         <Layers className="mb-3 h-10 w-10 text-white/15" />
-        <p className="text-sm text-white/30">Tidak ada orphan chunks</p>
-        <p className="mt-1 text-xs text-white/20">Semua chunk punya referensi file</p>
+        <p className="text-sm text-white/30">Tidak ada chunks</p>
+        <p className="mt-1 text-xs text-white/20">Upload file dan tunggu workflow selesai</p>
       </div>
     )
   }
@@ -130,7 +140,7 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0) }}
-            placeholder="Search chunks..."
+            placeholder="Search by content, file name, or drive ID..."
             className="w-full rounded-xl border border-white/10 bg-white/5 py-2.5 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:border-white/25 transition-colors"
           />
         </div>
@@ -153,7 +163,7 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
       {/* Table */}
       <div className="rounded-xl border border-white/[0.06] overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[700px]">
             <thead>
               <tr className="border-b border-white/[0.06] bg-white/[0.02]">
                 <th className="px-4 py-3 text-left">
@@ -165,51 +175,75 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
                   />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-white/40">
-                  Content (Preview)
+                  File Name
                 </th>
                 <th className="hidden md:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
-                  Metadata
+                  Drive File ID
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-white/40">
+                  Content
                 </th>
                 <th className="hidden lg:table-cell px-4 py-3 text-left text-xs font-medium text-white/40">
-                  Created At
+                  Status
                 </th>
               </tr>
             </thead>
             <tbody>
-              {pagedChunks.map((chunk) => (
-                <tr
-                  key={chunk.id}
-                  className={cn(
-                    "border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors",
-                    selectedIds.has(chunk.id) && "bg-white/[0.04]"
-                  )}
-                >
-                  <td className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(chunk.id)}
-                      onChange={() => toggleSelect(chunk.id)}
-                      className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
-                    />
-                  </td>
-                  <td className="px-4 py-3">
-                    <p className="text-sm text-white/70 max-w-[400px] truncate">
-                      {chunk.content?.slice(0, 150) || "(empty)"}
-                    </p>
-                  </td>
-                  <td className="hidden md:table-cell px-4 py-3">
-                    <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
-                      <AlertTriangle className="h-2.5 w-2.5" />
-                      tanpa file ref
-                    </span>
-                  </td>
-                  <td className="hidden lg:table-cell px-4 py-3 text-xs text-white/40">
-                    {chunk.created_at ? new Date(chunk.created_at).toLocaleDateString("id-ID", {
-                      day: "numeric", month: "short", year: "numeric"
-                    }) : "—"}
-                  </td>
-                </tr>
-              ))}
+              {pagedChunks.map((chunk) => {
+                const orphan = isOrphan(chunk)
+                const fileName = getFileName(chunk)
+                const driveId = getDriveFileId(chunk)
+                return (
+                  <tr
+                    key={chunk.id}
+                    className={cn(
+                      "border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors",
+                      selectedIds.has(chunk.id) && "bg-white/[0.04]",
+                      orphan && "bg-amber-500/[0.02]"
+                    )}
+                  >
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(chunk.id)}
+                        onChange={() => toggleSelect(chunk.id)}
+                        className="h-4 w-4 rounded border-white/20 bg-white/5 accent-orange-500"
+                      />
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 shrink-0 text-white/30" />
+                        <span className="truncate text-sm text-white/80 max-w-[200px]">
+                          {fileName}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="hidden md:table-cell px-4 py-3">
+                      <span className={cn(
+                        "font-mono text-xs",
+                        driveId ? "text-white/40" : "text-white/20 italic"
+                      )}>
+                        {driveId || "—"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm text-white/60 max-w-[300px] truncate">
+                        {chunk.content?.slice(0, 120) || "(empty)"}
+                      </p>
+                    </td>
+                    <td className="hidden lg:table-cell px-4 py-3">
+                      {orphan ? (
+                        <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/20 bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                          <AlertTriangle className="h-2.5 w-2.5" />
+                          tanpa drive ID
+                        </span>
+                      ) : (
+                        <span className="text-[10px] text-white/30">OK</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
@@ -253,9 +287,9 @@ export function OrphanChunks({ onCount }: OrphanChunksProps) {
       }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Hapus {selectedIds.size} orphan chunks?</AlertDialogTitle>
+            <AlertDialogTitle>Hapus {selectedIds.size} chunks?</AlertDialogTitle>
             <AlertDialogDescription>
-              Chunk-chunk ini tidak punya referensi file dan akan dihapus permanen.
+              Chunk-chunk ini akan dihapus permanen dari database.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

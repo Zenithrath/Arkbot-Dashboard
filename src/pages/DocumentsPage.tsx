@@ -85,7 +85,8 @@ export function DocumentsPage() {
       .order("file_name", { ascending: true })
 
     if (search) {
-      query = query.ilike("file_name", `%${search}%`)
+      const q = `%${search}%`
+      query = query.or(`file_name.ilike.${q},drive_file_id.ilike.${q}`)
     }
 
     if (!showWithoutDrive) {
@@ -411,7 +412,7 @@ export function DocumentsPage() {
               : "text-white/40 hover:bg-white/5 hover:text-white/60"
           )}
         >
-          <ExternalLink className="h-4 w-4" />
+          <img src="/logo-arka.png" alt="Arka" className="h-4 w-4 rounded" />
           Google Drive
           <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">
             {driveCount}

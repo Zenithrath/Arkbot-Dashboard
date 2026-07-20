@@ -173,7 +173,10 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
 
   // Filter logic
   const filteredFiles = driveFiles.filter((f, idx, arr) => {
-    if (driveSearch && !f.name.toLowerCase().includes(driveSearch.toLowerCase())) return false
+    if (driveSearch) {
+      const q = driveSearch.toLowerCase()
+      if (!f.name.toLowerCase().includes(q) && !f.id.toLowerCase().includes(q)) return false
+    }
     if (showDuplicatesOnly && !duplicateNames.has(f.name)) return false
     if (showOrphansOnly && databaseFileIds && databaseFileIds.has(f.id)) return false
     return true

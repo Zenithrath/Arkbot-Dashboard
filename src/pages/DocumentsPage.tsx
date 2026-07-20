@@ -447,7 +447,7 @@ export function DocumentsPage() {
           )}
         >
           <Layers className="h-4 w-4" />
-          Orphan Chunks
+          Chunks
           <span className={cn(
             "rounded-full px-2 py-0.5 text-xs",
             orphanCount > 0 ? "bg-amber-500/15 text-amber-400" : "bg-white/10"

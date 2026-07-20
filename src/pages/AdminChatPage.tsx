@@ -1,7 +1,8 @@
-import ReactMarkdown from "react-markdown"
+﻿import ReactMarkdown from "react-markdown"
 import {
   Bot,
   Copy,
+  RotateCcw,
   Check,
   Sparkles,
   Paperclip,
@@ -38,6 +39,7 @@ export function AdminChatPage() {
     sendMessage,
     handleKeyDown,
     handleCopy,
+    handleRegenerate,
     handleNewChat,
     openFilePicker,
   } = useChat({
@@ -50,7 +52,7 @@ export function AdminChatPage() {
 
   return (
     <div className="flex h-full flex-col bg-background overflow-hidden relative">
-      {/* New session button - fixed position */}
+      {/* New session button */}
       <button
         onClick={handleNewChat}
         className="fixed top-3 right-16 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
@@ -147,16 +149,29 @@ export function AdminChatPage() {
                         <div className="prose prose-invert prose-sm max-w-none text-sm leading-relaxed text-white/90 break-words overflow-wrap-anywhere">
                           <ReactMarkdown>{formatContent(msg.content)}</ReactMarkdown>
                         </div>
-                        <div className="mt-1 flex items-center gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
+                        <div className="mt-1 flex items-center gap-1">
                           <button
                             onClick={() => handleCopy(msg.content, msg.id)}
                             className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-white/40 hover:bg-white/5 hover:text-white/60"
                           >
                             {copiedId === msg.id ? (
-                              <Check className="h-3 w-3" />
+                              <>
+                                <Check className="h-3 w-3" />
+                                <span>Tersalin</span>
+                              </>
                             ) : (
-                              <Copy className="h-3 w-3" />
+                              <>
+                                <Copy className="h-3 w-3" />
+                                <span>Salin</span>
+                              </>
                             )}
+                          </button>
+                          <button
+                            onClick={() => handleRegenerate(msg.id)}
+                            className="flex items-center gap-1 rounded-full px-2 py-0.5 text-xs text-white/40 hover:bg-white/5 hover:text-white/60"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            <span>Ulangi</span>
                           </button>
                         </div>
                       </div>

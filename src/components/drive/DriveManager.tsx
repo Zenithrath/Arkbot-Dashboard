@@ -64,7 +64,12 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
 
       if (!filesRes.ok) throw new Error(`HTTP ${filesRes.status}`)
       const filesData = await filesRes.json()
-      const files = (filesData.files || []).sort((a: DriveCloudFile, b: DriveCloudFile) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
+      const files = (filesData.files || []).sort((a: DriveCloudFile, b: DriveCloudFile) => {
+        if (a.modifiedTime && b.modifiedTime) {
+          return new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime()
+        }
+        return (a.name || "").localeCompare(b.name || "")
+      })
 
       let folders: DriveFolder[] = []
       if (foldersRes.ok) {

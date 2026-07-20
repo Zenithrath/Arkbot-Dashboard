@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -42,7 +42,7 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
-      setFolders(data.folders || [])
+      setFolders(data.folders || data.files || [])
     } catch (err) {
       toast.error("Gagal mengambil folder")
     }

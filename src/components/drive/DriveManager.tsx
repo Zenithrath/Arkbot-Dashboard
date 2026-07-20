@@ -66,12 +66,12 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
 
       if (!filesRes.ok) throw new Error(`HTTP ${filesRes.status}`)
       const filesData = await filesRes.json()
-      const files = (filesData.files || []).filter((f: DriveCloudFile) => f.kind !== "drive#folder").sort((a: DriveCloudFile, b: DriveCloudFile) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
+      const files = (filesData.files || []).filter((f: DriveCloudFile) => { const ext = (f.name || "").split(".").pop()?.toLowerCase(); return ext && ["pdf","docx","xlsx","doc","xls","pptx","txt","md","csv","jpg","jpeg","png","gif","zip","rar"].includes(ext); }).sort((a: DriveCloudFile, b: DriveCloudFile) => new Date(b.modifiedTime).getTime() - new Date(a.modifiedTime).getTime())
 
       let folders: DriveFolder[] = []
       if (foldersRes.ok) {
         const foldersData = await foldersRes.json()
-        folders = foldersData.folders || []
+        folders = foldersData.folders || foldersData.files || []
       }
 
       setDriveFiles(files)

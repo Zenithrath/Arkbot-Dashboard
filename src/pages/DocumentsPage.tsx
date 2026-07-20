@@ -109,20 +109,23 @@ export function DocumentsPage() {
 
   const fetchFiles = async () => {
     setLoading(true)
-    const from = page * pageSize
-    const to = from + pageSize - 1
 
     let query = supabase
       .from("drive_file_sync")
       .select("*", { count: "exact" })
       .order("file_name", { ascending: true })
-      .range(from, to)
 
     if (search) {
       query = query.ilike("file_name", `%${search}%`)
     }
     if (statusFilter !== "all") {
       query = query.eq("status", statusFilter)
+    }
+
+    if (!showWithoutDrive) {
+      const from = page * pageSize
+      const to = from + pageSize - 1
+      query = query.range(from, to)
     }
 
     const { data, error, count } = await query
@@ -165,7 +168,7 @@ export function DocumentsPage() {
     fetchStatusCounts()
     fetchAllDatabaseFileIds()
     fetchDriveFileIds()
-  }, [page, search, statusFilter])
+  }, [page, search, statusFilter, showWithoutDrive])
 
   // Supabase Realtime subscription
   useEffect(() => {
@@ -498,7 +501,7 @@ export function DocumentsPage() {
 
             {driveFileIds.size > 0 && withoutDriveCount > 0 && (
               <button
-                onClick={() => setShowWithoutDrive(!showWithoutDrive)}
+                onClick={() => { setShowWithoutDrive(!showWithoutDrive); setPage(0); setSelectedIds(new Set()) }}
                 className={cn(
                   "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap",
                   showWithoutDrive

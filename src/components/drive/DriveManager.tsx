@@ -49,7 +49,7 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
       const files = (data.files || []).sort((a: DriveCloudFile, b: DriveCloudFile) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
       setDriveFiles(files)
       onCount?.(files.length)
-      onDriveIds?.(new Set(files.map(f => f.id)))
+      onDriveIds?.(new Set(files.map((f: DriveCloudFile) => f.id)))
     } catch (err) {
       let message = "Gagal mengambil file dari Google Drive"
       if (err instanceof DOMException && err.name === "TimeoutError") {
@@ -172,7 +172,7 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
   const orphanCount = orphanFiles.length
 
   // Filter logic
-  const filteredFiles = driveFiles.filter((f, idx, arr) => {
+  const filteredFiles = driveFiles.filter((f) => {
     if (driveSearch) {
       const q = driveSearch.toLowerCase()
       if (!f.name.toLowerCase().includes(q) && !f.id.toLowerCase().includes(q)) return false

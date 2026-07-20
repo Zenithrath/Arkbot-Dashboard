@@ -480,7 +480,7 @@ export function DocumentsPage() {
               const displayedFiles = showWithoutDrive
                 ? files.filter(f => f.drive_file_id && !driveFileIds.has(f.drive_file_id))
                 : files
-              const withoutDriveCount = files.filter(f => f.drive_file_id && !driveFileIds.has(f.drive_file_id)).length
+              const withoutDriveCount = [...allDatabaseFileIds].filter(id => !driveFileIds.has(id)).length
               return (
         <>
           {/* Search + Filter */}

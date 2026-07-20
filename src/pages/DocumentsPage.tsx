@@ -37,6 +37,7 @@ import { toast } from "sonner"
 import type { RealtimeChannel } from "@supabase/supabase-js"
 import { DriveManager } from "@/components/drive/DriveManager"
 import { OrphanChunks } from "@/components/drive/OrphanChunks"
+import { N8N_DRIVE_MANAGER_URL } from "@/components/drive/types"
 
 const N8N_DELETE_FILE_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/delete-drive"
@@ -114,7 +115,7 @@ export function DocumentsPage() {
     let query = supabase
       .from("drive_file_sync")
       .select("*", { count: "exact" })
-      .order("last_synced_at", { ascending: false })
+      .order("file_name", { ascending: true })
       .range(from, to)
 
     if (search) {
@@ -144,10 +145,26 @@ export function DocumentsPage() {
     }
   }
 
+  const fetchDriveFileIds = async () => {
+    try {
+      const res = await fetch(N8N_DRIVE_MANAGER_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "list" }),
+        signal: AbortSignal.timeout(30000),
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      const ids = (data.files || []).map((f: any) => f.id)
+      setDriveFileIds(new Set(ids))
+    } catch {}
+  }
+
   useEffect(() => {
     fetchFiles()
     fetchStatusCounts()
     fetchAllDatabaseFileIds()
+    fetchDriveFileIds()
   }, [page, search, statusFilter])
 
   // Supabase Realtime subscription

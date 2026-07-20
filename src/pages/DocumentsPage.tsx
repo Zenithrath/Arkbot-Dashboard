@@ -75,6 +75,14 @@ export function DocumentsPage() {
   const [orphanCount, setOrphanCount] = useState(0)
   const [driveFileIds, setDriveFileIds] = useState<Set<string>>(new Set())
   const [showWithoutDrive, setShowWithoutDrive] = useState(false)
+  const [totalCountAll, setTotalCountAll] = useState(0)
+
+  const fetchTotalCount = async () => {
+    const { count } = await supabase
+      .from("drive_file_sync")
+      .select("id", { count: "exact", head: true })
+    setTotalCountAll(count ?? 0)
+  }
 
   const fetchFiles = async () => {
     setLoading(true)
@@ -132,6 +140,7 @@ export function DocumentsPage() {
 
   useEffect(() => {
     fetchFiles()
+    fetchTotalCount()
     fetchAllDatabaseFileIds()
     fetchDriveFileIds()
   }, [page, search, showWithoutDrive])
@@ -365,7 +374,7 @@ export function DocumentsPage() {
         <div>
           <h1 className="text-xl font-semibold text-white">Documents</h1>
           <p className="mt-1 text-sm text-white/40">
-            {activeTab === "database" ? totalCount + " file di database" : activeTab === "drive" ? driveCount + " file di Google Drive" : orphanCount + " orphan chunks"}
+            {activeTab === "database" ? totalCountAll + " file di database" : activeTab === "drive" ? driveCount + " file di Google Drive" : orphanCount + " orphan chunks"}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -412,7 +421,7 @@ export function DocumentsPage() {
               : "text-white/40 hover:bg-white/5 hover:text-white/60"
           )}
         >
-          <img src="/logo-arka.png" alt="Arka" className="h-4 w-4 rounded" />
+          <ExternalLink className="h-4 w-4" />
           Google Drive
           <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs">
             {driveCount}

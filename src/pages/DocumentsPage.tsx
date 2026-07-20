@@ -90,7 +90,7 @@ export function DocumentsPage() {
     let query = supabase
       .from("drive_file_sync")
       .select("*", { count: "exact" })
-      .order("last_synced_at", { ascending: false })
+      .order("file_name", { ascending: true })
 
     if (search) {
       const q = `%${search}%`

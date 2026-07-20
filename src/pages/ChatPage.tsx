@@ -1,4 +1,4 @@
-import ReactMarkdown from "react-markdown"
+﻿import ReactMarkdown from "react-markdown"
 import {
   Bot,
   Copy,
@@ -9,6 +9,7 @@ import {
   X,
   FileText,
   Settings,
+  Plus,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -40,6 +41,7 @@ export function ChatPage() {
     handleKeyDown,
     handleCopy,
     handleRegenerate,
+    handleNewChat,
     openFilePicker,
   } = useChat({
     apiEndpoint: CHAT_API_URL,
@@ -53,7 +55,7 @@ export function ChatPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background overflow-hidden">
-      {/* Admin button - fixed position */}
+      {/* Admin button */}
       <a
         href="/admin"
         className="fixed top-3 left-3 z-50 flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
@@ -61,8 +63,17 @@ export function ChatPage() {
         <Settings className="h-4 w-4" />
       </a>
 
+      {/* New session button */}
+      {!isEmpty && (
+        <button
+          onClick={handleNewChat}
+          className="fixed top-3 right-3 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      )}
+
       {isEmpty ? (
-        /* Welcome state */
         <div className="flex flex-1 flex-col items-center justify-center px-4 overflow-hidden pt-16">
           <h1 className="mb-10 text-center text-3xl font-light text-white/80 sm:text-4xl">
             Siap Anda gunakan kapan saja
@@ -137,9 +148,7 @@ export function ChatPage() {
           </div>
         </div>
       ) : (
-        /* Conversation state */
         <>
-          {/* Messages */}
           <div className="flex-1 min-h-0 overflow-y-auto bg-background scrollbar-hide pt-16">
             <div className="mx-auto max-w-3xl px-4 py-6 space-y-6">
               {messages.map((msg) => (
@@ -160,7 +169,6 @@ export function ChatPage() {
             </div>
           </div>
 
-          {/* Input */}
           <div className="shrink-0 px-4 pb-4 pt-2 bg-background">
             <div className="mx-auto max-w-3xl">
               <div className="relative">
@@ -269,7 +277,7 @@ function MessageBubble({
         <div className="prose prose-invert prose-sm max-w-none leading-relaxed text-white/90 break-words overflow-wrap-anywhere">
           <ReactMarkdown>{formatContent(message.content)}</ReactMarkdown>
         </div>
-        <div className="mt-2 flex items-center gap-1 opacity-0 transition-opacity group-hover/msg:opacity-100">
+        <div className="mt-2 flex items-center gap-1">
           <button
             onClick={() => onCopy(message.content, message.id)}
             className="flex items-center gap-1 rounded-full px-2.5 py-1 text-xs text-white/40 transition-colors hover:bg-white/5 hover:text-white/60"

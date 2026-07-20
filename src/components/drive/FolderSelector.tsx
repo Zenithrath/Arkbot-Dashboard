@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -9,7 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, Folder, FolderPlus, Home, RefreshCw, Loader2 } from "lucide-react"
+import { ChevronDown, Folder, FolderPlus, RefreshCw, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { N8N_DRIVE_MANAGER_URL, type DriveFolder } from "./types"
@@ -27,6 +27,9 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
   const [newFolderName, setNewFolderName] = useState("")
   const [creating, setCreating] = useState(false)
   const [currentParentId, setCurrentParentId] = useState<string | null>("1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj")
+
+  const ARKBOT_LIBRARY_ID = "1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj"
+  const ARKBOT_LIBRARY_NAME = "Arkbot Library"
 
   const fetchFolders = async (parentId?: string | null) => {
     setLoading(true)
@@ -79,18 +82,16 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
 
   const selectedName = value
     ? (() => {
-        // Find folder name by ID from current list or show ID
         const found = folders.find(f => f.id === value)
         return found?.name || value
       })()
-    : "Root (Arkbot Library)"
+    : ARKBOT_LIBRARY_NAME
 
   return (
     <div className="space-y-2">
       <label className="text-xs font-medium text-white/50">Folder Tujuan</label>
 
       <div className="flex items-center gap-2">
-        {/* Dropdown button */}
         <button
           onClick={() => setDropdownOpen(!dropdownOpen)}
           className={cn(
@@ -105,7 +106,6 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
           <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", dropdownOpen && "rotate-180")} />
         </button>
 
-        {/* Create folder button */}
         <Button
           size="icon"
           variant="ghost"
@@ -116,10 +116,8 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
         </Button>
       </div>
 
-      {/* Dropdown list */}
       {dropdownOpen && (
         <div className="rounded-xl border border-white/10 bg-[#1a1a1c] p-2 space-y-1 max-h-[250px] overflow-y-auto">
-          {/* Root option */}
           <button
             onClick={() => { onChange(null); setDropdownOpen(false) }}
             className={cn(
@@ -129,8 +127,8 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
                 : "text-white/60 hover:bg-white/5 hover:text-white/80"
             )}
           >
-            <Home className="h-4 w-4 shrink-0" />
-            <span>Root (Arkbot Library)</span>
+            <Folder className="h-4 w-4 shrink-0 text-amber-400/60" />
+            <span>{ARKBOT_LIBRARY_NAME}</span>
             {!value && <span className="ml-auto text-[10px] text-orange-400">dipilih</span>}
           </button>
 
@@ -159,7 +157,6 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
             ))
           )}
 
-          {/* Refresh */}
           <div className="flex justify-end pt-1 border-t border-white/5">
             <button
               onClick={() => fetchFolders(currentParentId)}
@@ -172,7 +169,6 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
         </div>
       )}
 
-      {/* Create Folder Dialog */}
       <AlertDialog open={createDialogOpen} onOpenChange={(open) => {
         if (!open) { setCreateDialogOpen(false); setNewFolderName("") }
       }}>
@@ -180,7 +176,7 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">Buat Folder Baru</AlertDialogTitle>
             <AlertDialogDescription className="text-white/50">
-              Folder akan dibuat di Arkbot Library
+              Folder akan dibuat di {selectedName}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <input

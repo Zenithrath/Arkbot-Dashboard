@@ -140,35 +140,27 @@ export function AdminRegistrationsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-white">Users</h1>
-          <p className="text-sm text-white/40 mt-1">
-            Manage user registrations and accounts
-            {pendingCount > 0 && (
-              <span className="ml-2 inline-flex items-center justify-center rounded-full bg-orange-500 px-2 py-0.5 text-xs font-medium text-white">
-                {pendingCount} pending
-              </span>
-            )}
-          </p>
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-lg sm:text-xl font-semibold text-white">Users</h1>
         </div>
         <Button
           onClick={fetchUsers}
           variant="outline"
           size="sm"
-          className="border-white/10 text-white/60 hover:text-white"
+          className="shrink-0 border-white/10 text-white/60 hover:text-white"
         >
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          <span className="hidden sm:inline ml-2">Refresh</span>
         </Button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 overflow-x-auto">
         <button
           onClick={() => setActiveTab("pending")}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
             activeTab === "pending"
               ? "bg-orange-500 text-white"
               : "bg-white/5 text-white/50 hover:text-white/70"
@@ -177,22 +169,22 @@ export function AdminRegistrationsPage() {
           <Clock className="h-4 w-4" />
           Pending
           {pendingCount > 0 && (
-            <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
+            <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
               {pendingCount}
             </span>
           )}
         </button>
         <button
           onClick={() => setActiveTab("approved")}
-          className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium transition-colors ${
             activeTab === "approved"
               ? "bg-green-600 text-white"
               : "bg-white/5 text-white/50 hover:text-white/70"
           }`}
         >
           <Users className="h-4 w-4" />
-          Active Users
-          <span className="ml-1 rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
+          Active
+          <span className="rounded-full bg-white/20 px-1.5 py-0.5 text-xs">
             {approvedUsers.length}
           </span>
         </button>
@@ -213,15 +205,15 @@ export function AdminRegistrationsPage() {
             {pendingUsers.map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-4"
+                className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 sm:p-4 space-y-3"
               >
-                <div className="flex items-center gap-4 min-w-0">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10">
                     <span className="text-sm font-medium text-yellow-400">
                       {user.email.charAt(0).toUpperCase()}
                     </span>
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-white truncate">{user.email}</p>
                     <p className="text-xs text-white/30 mt-0.5">
                       {new Date(user.created_at).toLocaleDateString("id-ID", {
@@ -235,7 +227,7 @@ export function AdminRegistrationsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center justify-between gap-2">
                   <span className={statusBadge("pending")}>
                     {statusIcon("pending")}
                     pending
@@ -252,8 +244,8 @@ export function AdminRegistrationsPage() {
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                          Approve
+                          <CheckCircle2 className="h-3.5 w-3.5 sm:mr-1.5" />
+                          <span className="hidden sm:inline">Approve</span>
                         </>
                       )}
                     </Button>
@@ -264,8 +256,8 @@ export function AdminRegistrationsPage() {
                       variant="outline"
                       className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10"
                     >
-                      <UserX className="h-3.5 w-3.5 mr-1.5" />
-                      Reject
+                      <UserX className="h-3.5 w-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Reject</span>
                     </Button>
                   </div>
                 </div>
@@ -283,18 +275,18 @@ export function AdminRegistrationsPage() {
           {approvedUsers.map((user) => (
             <div
               key={user.id}
-              className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] p-4"
+              className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 sm:p-4 space-y-3"
             >
-              <div className="flex items-center gap-4 min-w-0">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-green-500/10">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full bg-green-500/10">
                   <span className="text-sm font-medium text-green-400">
                     {user.email.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-white truncate">{user.email}</p>
                   <p className="text-xs text-white/30 mt-0.5">
-                    Approved {new Date(user.created_at).toLocaleDateString("id-ID", {
+                    {new Date(user.created_at).toLocaleDateString("id-ID", {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
@@ -303,7 +295,7 @@ export function AdminRegistrationsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center justify-between gap-2">
                 <span className={statusBadge("approved")}>
                   {statusIcon("approved")}
                   active
@@ -326,8 +318,8 @@ export function AdminRegistrationsPage() {
 
       {/* Delete Confirmation Dialog */}
       {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-sm rounded-xl border border-white/[0.06] bg-[#1a1a1b] p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-white/[0.06] bg-[#1a1a1b] p-5 sm:p-6 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/10">
                 <AlertTriangle className="h-5 w-5 text-red-400" />
@@ -339,7 +331,7 @@ export function AdminRegistrationsPage() {
             </div>
 
             <p className="text-sm text-white/60 mb-6">
-              Are you sure you want to delete <span className="font-medium text-white">{deleteConfirm.email}</span>?
+              Are you sure you want to delete <span className="font-medium text-white break-all">{deleteConfirm.email}</span>?
             </p>
 
             <div className="flex gap-3">

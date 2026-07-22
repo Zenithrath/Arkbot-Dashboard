@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { Bot, Loader2 } from "lucide-react"
+import { Bot, Loader2, Mail } from "lucide-react"
 
 type AuthMode = "login" | "register"
 
@@ -14,6 +14,11 @@ export function LoginPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState("")
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotSuccess, setForgotSuccess] = useState("")
+  const [rememberMe, setRememberMe] = useState(false)
   const navigate = useNavigate()
 
   const resetMessages = () => {
@@ -27,23 +32,74 @@ export function LoginPage() {
     setConfirmPassword("")
   }
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotLoading(true)
+    setForgotSuccess("")
+    setError("")
+
+    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+      redirectTo: `${window.location.origin}/login`,
+    })
+
+    setForgotLoading(false)
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setForgotSuccess("Password reset link sent! Check your email.")
+      setForgotEmail("")
+    }
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     resetMessages()
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
 
+    if (error) {
+      setLoading(false)
+      setError(error.message)
+      return
+    }
+
+    // Check if user exists in pending_users and is approved
+    const { data: pendingUser } = await supabase
+      .from("pending_users")
+      .select("status")
+      .eq("email", email)
+      .single()
+
+    // If user not in pending_users or not approved, block them
+    if (!pendingUser || pendingUser.status !== "approved") {
+      await supabase.auth.signOut()
+      setLoading(false)
+      if (!pendingUser) {
+        setError("Account not found. Please register first.")
+      } else {
+        setError("Your account is pending approval. Please wait for admin to approve.")
+      }
+      return
+    }
+
     setLoading(false)
 
-    if (error) {
-      setError(error.message)
-    } else {
-      navigate("/admin")
+    // If not remember me, clear session from localStorage so it doesn't persist
+    if (!rememberMe) {
+      const keys = Object.keys(localStorage)
+      for (const key of keys) {
+        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          localStorage.removeItem(key)
+        }
+      }
     }
+
+    navigate("/admin")
   }
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -62,24 +118,52 @@ export function LoginPage() {
 
     setLoading(true)
 
+    // Check if email already pending
+    const { data: existing } = await supabase
+      .from("pending_users")
+      .select("id, status")
+      .eq("email", email)
+      .single()
+
+    if (existing) {
+      if (existing.status === "approved") {
+        setLoading(false)
+        setError("This email is already approved. Please sign in.")
+        return
+      }
+      setLoading(false)
+      setError("Registration already pending. Please wait for admin approval.")
+      return
+    }
+
+    // Create auth user
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
     })
 
-    setLoading(false)
-
     if (error) {
+      setLoading(false)
       setError(error.message)
       return
     }
 
-    if (data.session) {
-      navigate("/admin")
+    // Save to pending_users
+    const { error: insertError } = await supabase.from("pending_users").insert({
+      email,
+      user_id: data.user?.id,
+      status: "pending",
+    })
+
+    setLoading(false)
+
+    if (insertError) {
+      setError("Failed to submit registration. Please try again.")
       return
     }
 
-    setSuccess("Account created. Check your email to confirm before signing in.")
+    setSuccess("Registration submitted! Please wait for admin approval before signing in.")
+    setEmail("")
     setPassword("")
     setConfirmPassword("")
   }
@@ -154,6 +238,20 @@ export function LoginPage() {
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-orange-500/50 transition-colors"
               placeholder="••••••••"
             />
+            {!isRegister && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPassword(true)
+                  setForgotEmail(email)
+                  setForgotSuccess("")
+                  setError("")
+                }}
+                className="mt-2 text-xs text-orange-400 hover:text-orange-300 transition-colors"
+              >
+                Forgot Password?
+              </button>
+            )}
           </div>
 
           {isRegister && (
@@ -170,6 +268,21 @@ export function LoginPage() {
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-orange-500/50 transition-colors"
                 placeholder="••••••••"
               />
+            </div>
+          )}
+
+          {!isRegister && (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="remember-me"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-white/20 bg-white/5 text-orange-500 focus:ring-orange-500/50"
+              />
+              <label htmlFor="remember-me" className="text-sm text-white/50 cursor-pointer">
+                Remember me
+              </label>
             </div>
           )}
 
@@ -200,6 +313,78 @@ export function LoginPage() {
           </Button>
         </form>
       </div>
+
+      {/* Forgot Password Modal */}
+      {showForgotPassword && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-sm rounded-xl border border-white/[0.06] bg-[#1a1a1b] p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500/10">
+                <Mail className="h-5 w-5 text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">Reset Password</h3>
+                <p className="text-xs text-white/40">We'll send you a reset link</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleForgotPassword} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-white/50">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  required
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-orange-500/50 transition-colors"
+                  placeholder="your@email.com"
+                />
+              </div>
+
+              {forgotSuccess && (
+                <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm text-green-400">
+                  {forgotSuccess}
+                </div>
+              )}
+
+              {error && (
+                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                  {error}
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotPassword(false)
+                    setForgotEmail("")
+                    setForgotSuccess("")
+                    setError("")
+                  }}
+                  variant="outline"
+                  className="flex-1 border-white/10 text-white/60"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="flex-1 bg-orange-500 hover:bg-orange-400 text-white"
+                >
+                  {forgotLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    "Send Link"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

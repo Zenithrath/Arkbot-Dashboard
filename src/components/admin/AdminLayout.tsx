@@ -11,6 +11,7 @@ import {
   Loader2,
   Menu,
   X,
+  Users,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -18,6 +19,7 @@ const navItems = [
   { to: "/admin/documents", icon: FileText, label: "Documents" },
   { to: "/admin/chat", icon: MessageSquare, label: "Chat" },
   { to: "/admin/upload", icon: Upload, label: "Upload" },
+  { to: "/admin/registrations", icon: Users, label: "Users" },
 ]
 
 export function AdminLayout() {
@@ -29,12 +31,26 @@ export function AdminLayout() {
   useWorkflowErrors()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
         navigate("/login")
-      } else {
-        setLoading(false)
+        return
       }
+
+      // Check if user still exists in pending_users
+      const { data } = await supabase
+        .from("pending_users")
+        .select("status")
+        .eq("email", session.user.email)
+        .single()
+
+      if (!data || data.status !== "approved") {
+        await supabase.auth.signOut()
+        navigate("/login")
+        return
+      }
+
+      setLoading(false)
     })
   }, [navigate])
 

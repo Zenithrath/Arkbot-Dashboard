@@ -82,7 +82,6 @@ export function AdminRegistrationsPage() {
     // Delete auth user via Edge Function
     if (user.user_id) {
       try {
-        console.log("Deleting auth user:", user.user_id)
         const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-auth-user`, {
           method: "POST",
           headers: {
@@ -92,12 +91,12 @@ export function AdminRegistrationsPage() {
           body: JSON.stringify({ user_id: user.user_id }),
         })
         const data = await res.json()
-        console.log("Edge Function response:", data)
+        if (data.error) {
+          console.error("Edge Function error:", data.error)
+        }
       } catch (e) {
         console.error("Failed to delete auth user:", e)
       }
-    } else {
-      console.log("No user_id found for:", user.email)
     }
 
     // Delete from pending_users

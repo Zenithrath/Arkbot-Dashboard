@@ -155,6 +155,9 @@ export function LoginPage() {
       status: "pending",
     })
 
+    // Sign out immediately - user must wait for admin approval
+    await supabase.auth.signOut()
+
     setLoading(false)
 
     if (insertError) {

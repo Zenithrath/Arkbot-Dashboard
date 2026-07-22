@@ -129,7 +129,7 @@ export function DocumentsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "list" }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(120000),
       })
       if (!res.ok) return
       const data = await res.json()
@@ -199,7 +199,7 @@ export function DocumentsPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ drive_file_id: file.drive_file_id }),
-            signal: AbortSignal.timeout(30000),
+            signal: AbortSignal.timeout(120000),
           })
 
           if (!res.ok) {
@@ -293,7 +293,7 @@ export function DocumentsPage() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ drive_file_id: file.drive_file_id }),
-            signal: AbortSignal.timeout(30000),
+            signal: AbortSignal.timeout(120000),
           })
           if (!res.ok) failCount++
         } catch {

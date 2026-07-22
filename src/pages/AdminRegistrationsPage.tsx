@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import {
   Loader2,
   CheckCircle2,
-  XCircle,
   Clock,
   UserCheck,
   UserX,
@@ -18,7 +17,7 @@ type PendingUser = {
   id: string
   email: string
   user_id: string
-  status: "pending" | "approved" | "rejected"
+  status: "pending" | "approved"
   created_at: string
 }
 
@@ -63,15 +62,31 @@ export function AdminRegistrationsPage() {
 
   const handleReject = async (user: PendingUser) => {
     setActionLoading(user.id)
+
+    // Delete auth user via Edge Function
+    if (user.user_id) {
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-auth-user`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ user_id: user.user_id }),
+        })
+      } catch (e) {
+        console.error("Failed to delete auth user:", e)
+      }
+    }
+
+    // Delete from pending_users
     const { error } = await supabase
       .from("pending_users")
-      .update({ status: "rejected" })
+      .delete()
       .eq("id", user.id)
 
     if (!error) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === user.id ? { ...u, status: "rejected" } : u))
-      )
+      setUsers((prev) => prev.filter((u) => u.id !== user.id))
     }
     setActionLoading(null)
   }
@@ -120,8 +135,6 @@ export function AdminRegistrationsPage() {
     switch (status) {
       case "approved":
         return <CheckCircle2 className="h-4 w-4 text-green-400" />
-      case "rejected":
-        return <XCircle className="h-4 w-4 text-red-400" />
       default:
         return <Clock className="h-4 w-4 text-yellow-400" />
     }
@@ -132,8 +145,6 @@ export function AdminRegistrationsPage() {
     switch (status) {
       case "approved":
         return `${base} bg-green-500/10 text-green-400 border border-green-500/20`
-      case "rejected":
-        return `${base} bg-red-500/10 text-red-400 border border-red-500/20`
       default:
         return `${base} bg-yellow-500/10 text-yellow-400 border border-yellow-500/20`
     }

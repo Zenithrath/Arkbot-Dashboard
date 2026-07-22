@@ -281,8 +281,8 @@ export function LoginPage() {
 
       {/* Forgot Password Modal */}
       {showForgotPassword && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="w-full max-w-sm rounded-xl border border-white/[0.06] bg-[#1a1a1b] p-6 shadow-xl">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-white/[0.06] bg-[#1a1a1b] p-5 sm:p-6 shadow-xl">
             <div className="flex items-center gap-3 mb-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500/10">
                 <Mail className="h-5 w-5 text-orange-400" />

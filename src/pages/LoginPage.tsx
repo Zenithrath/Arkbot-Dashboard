@@ -18,7 +18,6 @@ export function LoginPage() {
   const [forgotEmail, setForgotEmail] = useState("")
   const [forgotLoading, setForgotLoading] = useState(false)
   const [forgotSuccess, setForgotSuccess] = useState("")
-  const [rememberMe, setRememberMe] = useState(false)
   const navigate = useNavigate()
 
   const resetMessages = () => {
@@ -88,17 +87,6 @@ export function LoginPage() {
     }
 
     setLoading(false)
-
-    // If not remember me, clear session from localStorage so it doesn't persist
-    if (!rememberMe) {
-      const keys = Object.keys(localStorage)
-      for (const key of keys) {
-        if (key.startsWith("sb-") && key.endsWith("-auth-token")) {
-          localStorage.removeItem(key)
-        }
-      }
-    }
-
     navigate("/admin")
   }
 
@@ -118,7 +106,19 @@ export function LoginPage() {
 
     setLoading(true)
 
-    // Check if email already pending
+    // Create auth user first (this creates a session so we can query pending_users)
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+    })
+
+    if (error) {
+      setLoading(false)
+      setError(error.message)
+      return
+    }
+
+    // Check if email already pending (now authenticated)
     const { data: existing } = await supabase
       .from("pending_users")
       .select("id, status")
@@ -133,18 +133,6 @@ export function LoginPage() {
       }
       setLoading(false)
       setError("Registration already pending. Please wait for admin approval.")
-      return
-    }
-
-    // Create auth user
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
-
-    if (error) {
-      setLoading(false)
-      setError(error.message)
       return
     }
 
@@ -271,21 +259,6 @@ export function LoginPage() {
                 className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-orange-500/50 transition-colors"
                 placeholder="••••••••"
               />
-            </div>
-          )}
-
-          {!isRegister && (
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="remember-me"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-                className="h-4 w-4 rounded border-white/20 bg-white/5 text-orange-500 focus:ring-orange-500/50"
-              />
-              <label htmlFor="remember-me" className="text-sm text-white/50 cursor-pointer">
-                Remember me
-              </label>
             </div>
           )}
 

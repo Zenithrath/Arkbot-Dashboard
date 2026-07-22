@@ -40,7 +40,7 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(120000),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json()
@@ -66,7 +66,7 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(120000),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       toast.success(`Folder "${newFolderName}" berhasil dibuat`)

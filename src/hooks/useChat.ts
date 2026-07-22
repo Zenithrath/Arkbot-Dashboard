@@ -164,7 +164,7 @@ export function useChat({
             method: "POST",
             headers: { "x-api-key": apiKey },
             body: formData,
-            signal: AbortSignal.timeout(60000),
+            signal: AbortSignal.timeout(300000),
           })
         } else {
           res = await fetch(apiEndpoint, {
@@ -174,7 +174,7 @@ export function useChat({
               "x-api-key": apiKey,
             },
             body: JSON.stringify({ message: sanitized, sessionId }),
-            signal: AbortSignal.timeout(60000),
+            signal: AbortSignal.timeout(300000),
           })
         }
 

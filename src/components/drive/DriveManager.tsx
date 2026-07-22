@@ -52,13 +52,13 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "list" }),
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(120000),
         }),
         fetch(N8N_DRIVE_MANAGER_URL, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "list_folders", parent_id: ARKBOT_LIBRARY_ID }),
-          signal: AbortSignal.timeout(15000),
+          signal: AbortSignal.timeout(120000),
         }),
       ])
 
@@ -100,7 +100,7 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "delete", drive_file_id: fileId }),
-        signal: AbortSignal.timeout(30000),
+        signal: AbortSignal.timeout(120000),
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const data = await res.json().catch(() => ({}))
@@ -148,7 +148,7 @@ export function DriveManager({ onCount, databaseFileIds, onDriveIds }: DriveMana
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "delete", drive_file_id: id }),
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(120000),
         })
         if (!res.ok) { failCount++; continue }
         const data = await res.json().catch(() => ({}))

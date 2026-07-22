@@ -79,6 +79,23 @@ export function AdminRegistrationsPage() {
   const handleDelete = async (user: PendingUser) => {
     setActionLoading(user.id)
 
+    // Delete auth user via Edge Function
+    if (user.user_id) {
+      try {
+        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-auth-user`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ user_id: user.user_id }),
+        })
+      } catch (e) {
+        console.error("Failed to delete auth user:", e)
+      }
+    }
+
+    // Delete from pending_users
     const { error } = await supabase
       .from("pending_users")
       .delete()

@@ -106,7 +106,7 @@ export function LoginPage() {
 
     setLoading(true)
 
-    // Create auth user first (this creates a session so we can query pending_users)
+    // Create auth user first
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -118,41 +118,30 @@ export function LoginPage() {
       return
     }
 
-    // Check if email already pending (now authenticated)
-    const { data: existing } = await supabase
-      .from("pending_users")
-      .select("id, status")
-      .eq("email", email)
-      .single()
-
-    if (existing) {
-      if (existing.status === "approved") {
-        setLoading(false)
-        setError("This email is already approved. Please sign in.")
-        return
-      }
+    if (!data.user) {
       setLoading(false)
-      setError("Registration already pending. Please wait for admin approval.")
+      setError("Failed to create account.")
       return
     }
 
     // Save to pending_users
     const { error: insertError } = await supabase.from("pending_users").insert({
       email,
-      user_id: data.user?.id,
+      user_id: data.user.id,
       status: "pending",
     })
 
-    // Sign out immediately - user must wait for admin approval
-    await supabase.auth.signOut()
-
-    setLoading(false)
-
     if (insertError) {
-      setError("Failed to submit registration. Please try again.")
+      console.error("Insert error:", insertError)
+      setLoading(false)
+      setError("Failed to submit registration: " + insertError.message)
       return
     }
 
+    // Sign out immediately
+    await supabase.auth.signOut()
+
+    setLoading(false)
     setSuccess("Registration submitted! Please wait for admin approval before signing in.")
     setEmail("")
     setPassword("")

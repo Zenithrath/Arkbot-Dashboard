@@ -7,6 +7,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout"
 import { DocumentsPage } from "@/pages/DocumentsPage"
 import { AdminChatPage } from "@/pages/AdminChatPage"
 import { UploadPage } from "@/pages/UploadPage"
+import { AdminRegistrationsPage } from "@/pages/AdminRegistrationsPage"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 
 export default function App() {
@@ -23,6 +24,7 @@ export default function App() {
               <Route path="documents" element={<DocumentsPage />} />
               <Route path="chat" element={<AdminChatPage />} />
               <Route path="upload" element={<UploadPage />} />
+              <Route path="registrations" element={<AdminRegistrationsPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

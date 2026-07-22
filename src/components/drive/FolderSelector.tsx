@@ -19,6 +19,9 @@ interface FolderSelectorProps {
   onChange: (folderId: string | null) => void
 }
 
+const ARKBOT_LIBRARY_ID = "1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj"
+const ARKBOT_LIBRARY_NAME = "Arkbot Library"
+
 export function FolderSelector({ value, onChange }: FolderSelectorProps) {
   const [folders, setFolders] = useState<DriveFolder[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,10 +29,6 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState("")
   const [creating, setCreating] = useState(false)
-  const [currentParentId, setCurrentParentId] = useState<string | null>("1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj")
-
-  const ARKBOT_LIBRARY_ID = "1lKvWCa7FR23qRYL_mBGpQOhs6JI58sxj"
-  const ARKBOT_LIBRARY_NAME = "Arkbot Library"
 
   const fetchFolders = async (parentId?: string | null) => {
     setLoading(true)
@@ -53,15 +52,15 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
   }
 
   useEffect(() => {
-    fetchFolders(currentParentId)
-  }, [currentParentId])
+    fetchFolders(ARKBOT_LIBRARY_ID)
+  }, [])
 
   const handleCreateFolder = async () => {
     if (!newFolderName.trim()) return
     setCreating(true)
     try {
       const body: any = { action: "create_folder", name: newFolderName.trim() }
-      if (currentParentId) body.parent_id = currentParentId
+      if (ARKBOT_LIBRARY_ID) body.parent_id = ARKBOT_LIBRARY_ID
 
       const res = await fetch(N8N_DRIVE_MANAGER_URL, {
         method: "POST",
@@ -73,7 +72,7 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
       toast.success(`Folder "${newFolderName}" berhasil dibuat`)
       setNewFolderName("")
       setCreateDialogOpen(false)
-      fetchFolders(currentParentId)
+      fetchFolders(ARKBOT_LIBRARY_ID)
     } catch (err) {
       toast.error("Gagal membuat folder")
     }
@@ -159,7 +158,7 @@ export function FolderSelector({ value, onChange }: FolderSelectorProps) {
 
           <div className="flex justify-end pt-1 border-t border-white/5">
             <button
-              onClick={() => fetchFolders(currentParentId)}
+              onClick={() => fetchFolders(ARKBOT_LIBRARY_ID)}
               className="flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] text-white/30 hover:text-white/50 hover:bg-white/5"
             >
               <RefreshCw className="h-3 w-3" />

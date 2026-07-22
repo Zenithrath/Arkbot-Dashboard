@@ -24,8 +24,8 @@ RUN echo 'server { \
         try_files $uri $uri/ /index.html; \
     } \
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ { \
-        expires 1y; \
-        add_header Cache-Control "public, immutable"; \
+        expires 1h; \
+        add_header Cache-Control "public, no-cache"; \
     } \
 }' > /etc/nginx/conf.d/default.conf
 EXPOSE 80

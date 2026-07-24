@@ -1,4 +1,4 @@
-﻿import ReactMarkdown from "react-markdown"
+import ReactMarkdown from "react-markdown"
 import {
   Bot,
   Copy,
@@ -43,6 +43,8 @@ export function ChatPage() {
     handleRegenerate,
     handleNewChat,
     openFilePicker,
+    handleDrop,
+    handleDragOver,
   } = useChat({
     apiEndpoint: CHAT_API_URL,
     apiKey: CHAT_API_KEY,
@@ -80,7 +82,11 @@ export function ChatPage() {
           </h1>
 
           <div className="w-full max-w-3xl">
-            <div className="relative">
+            <div
+              className="relative"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+            >
               <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
               <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
                 {selectedFiles.length > 0 && (
@@ -109,10 +115,10 @@ export function ChatPage() {
                   <button
                     type="button"
                     onClick={openFilePicker}
-                    className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
+                    className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/50 hover:text-white/70 hover:bg-white/5"
                   >
                     <Paperclip className="h-4 w-4" />
-                    <span>Add files</span>
+                    <span className="hidden sm:inline">Add files</span>
                   </button>
                   <textarea
                     ref={textareaRef}
@@ -126,7 +132,8 @@ export function ChatPage() {
                   <Button
                     size="icon"
                     disabled={
-                      (!input.trim() && selectedFiles.length === 0) || isLoading
+                      (!input.trim() && selectedFiles.length === 0) ||
+                      isLoading
                     }
                     onClick={() => sendMessage(input)}
                     className={cn(
@@ -141,9 +148,9 @@ export function ChatPage() {
                 </div>
               </div>
             </div>
-            <p className="mt-3 text-center text-xs text-white/20">
-              ArkBot dapat membuat kesalahan. Mohon di periksa kembali informasi
-              yang diberikan.
+            <p className="mt-2 text-center text-xs text-white/20">
+              ArkBot dapat membuat kesalahan. Pastikan informasi yang diberikan
+              sudah benar.
             </p>
           </div>
         </div>
@@ -171,7 +178,11 @@ export function ChatPage() {
 
           <div className="shrink-0 px-4 pb-4 pt-2 bg-background">
             <div className="mx-auto max-w-3xl">
-              <div className="relative">
+              <div
+                className="relative"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+              >
                 <div className="absolute -inset-4 rounded-3xl bg-gradient-to-r from-orange-500/25 via-red-500/20 to-orange-400/15 blur-2xl" />
                 <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5 transition-colors focus-within:border-white/25">
                   {selectedFiles.length > 0 && (
@@ -203,7 +214,7 @@ export function ChatPage() {
                       className="flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-sm text-white/50 transition-colors hover:bg-white/5 hover:text-white/70"
                     >
                       <Paperclip className="h-4 w-4" />
-                      <span>Add files</span>
+                      <span className="hidden sm:inline">Add files</span>
                     </button>
                     <textarea
                       ref={textareaRef}
@@ -262,7 +273,20 @@ function MessageBubble({
     return (
       <div className="flex justify-end">
         <div className="max-w-[80%] rounded-3xl bg-white/10 px-5 py-3 text-[15px] text-white leading-relaxed">
-          {message.content}
+          {message.files && message.files.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {message.files.map((name, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs text-white/70"
+                >
+                  <FileText className="h-3 w-3" />
+                  {name}
+                </span>
+              ))}
+            </div>
+          )}
+          {message.content && <span>{message.content}</span>}
         </div>
       </div>
     )

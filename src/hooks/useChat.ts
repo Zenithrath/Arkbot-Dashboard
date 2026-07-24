@@ -7,6 +7,7 @@ export interface Message {
   role: "user" | "assistant"
   content: string
   timestamp: number
+  files?: string[]
 }
 
 interface ChatStorage {
@@ -128,20 +129,33 @@ export function useChat({
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index))
   }, [])
 
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const files = Array.from(e.dataTransfer.files)
+    if (files.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...files])
+    }
+  }, [])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
   const sendMessage = useCallback(
     async (text: string) => {
       const sanitized = sanitizeInput(text)
       if ((!sanitized && selectedFiles.length === 0) || isLoading) return
 
+      const fileNames = selectedFiles.map((f) => f.name)
+
       const userMsg: Message = {
         id: uuidv4(),
         role: "user",
-        content:
-          sanitized ||
-          (selectedFiles.length > 0
-            ? `[${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""} dilampirkan]`
-            : ""),
+        content: sanitized || "",
         timestamp: Date.now(),
+        files: fileNames.length > 0 ? fileNames : undefined,
       }
 
       setChat((prev) => ({ ...prev, messages: [...prev.messages, userMsg] }))
@@ -300,5 +314,7 @@ export function useChat({
     handleNewChat,
     handleRegenerate,
     openFilePicker,
+    handleDrop,
+    handleDragOver,
   }
 }

@@ -1,4 +1,4 @@
-﻿import ReactMarkdown from "react-markdown"
+import ReactMarkdown from "react-markdown"
 import {
   Bot,
   Copy,
@@ -42,6 +42,8 @@ export function AdminChatPage() {
     handleRegenerate,
     handleNewChat,
     openFilePicker,
+    handleDrop,
+    handleDragOver,
   } = useChat({
     apiEndpoint: CHAT_API_URL,
     apiKey: CHAT_API_KEY,
@@ -55,7 +57,7 @@ export function AdminChatPage() {
       {/* New session button */}
       <button
         onClick={handleNewChat}
-        className="fixed top-3 right-16 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
+        className="fixed top-3 right-3 sm:right-16 z-50 flex items-center justify-center w-10 h-10 rounded-lg bg-white/10 text-white/60 hover:text-white/80 hover:bg-white/15 transition-colors backdrop-blur-sm"
       >
         <Plus className="h-4 w-4" />
       </button>
@@ -66,7 +68,11 @@ export function AdminChatPage() {
             Admin Chat
           </h1>
           <div className="w-full max-w-2xl">
-            <div className="relative">
+            <div
+              className="relative"
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+            >
               <div className="absolute -inset-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-400/10 blur-xl" />
               <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5">
                 {selectedFiles.length > 0 && (
@@ -137,7 +143,20 @@ export function AdminChatPage() {
                   {msg.role === "user" ? (
                     <div className="flex justify-end">
                       <div className="max-w-[80%] rounded-2xl bg-white/10 px-4 py-2.5 text-sm text-white">
-                        {msg.content}
+                        {msg.files && msg.files.length > 0 && (
+                          <div className="mb-2 flex flex-wrap gap-1.5">
+                            {msg.files.map((name, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-1 rounded-lg bg-white/10 px-2 py-0.5 text-xs text-white/70"
+                              >
+                                <FileText className="h-3 w-3" />
+                                {name}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {msg.content && <span>{msg.content}</span>}
                       </div>
                     </div>
                   ) : (
@@ -197,7 +216,11 @@ export function AdminChatPage() {
 
           <div className="shrink-0 px-4 pb-3 pt-2 bg-background">
             <div className="mx-auto max-w-2xl">
-              <div className="relative">
+              <div
+                className="relative"
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+              >
                 <div className="absolute -inset-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-red-500/15 to-orange-400/10 blur-xl" />
                 <div className="relative rounded-2xl border border-white/15 bg-background px-2 py-1.5">
                   {selectedFiles.length > 0 && (

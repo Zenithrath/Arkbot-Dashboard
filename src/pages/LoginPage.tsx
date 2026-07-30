@@ -86,6 +86,9 @@ export function LoginPage() {
       return
     }
 
+    // Set login timestamp for 12-hour session expiration
+    localStorage.setItem("login_timestamp", Date.now().toString())
+
     setLoading(false)
     navigate("/admin")
   }

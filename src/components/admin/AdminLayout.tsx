@@ -31,27 +31,90 @@ export function AdminLayout() {
   useWorkflowErrors()
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      if (!session) {
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session) {
+          localStorage.removeItem("login_timestamp")
+          navigate("/login")
+          return
+        }
+
+        // Check 12-hour session expiration
+        const loginTimestampStr = localStorage.getItem("login_timestamp")
+        const now = Date.now()
+        const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000
+
+        if (loginTimestampStr) {
+          const loginTimestamp = parseInt(loginTimestampStr, 10)
+          if (isNaN(loginTimestamp) || now - loginTimestamp > TWELVE_HOURS_MS) {
+            localStorage.removeItem("login_timestamp")
+            try {
+              await supabase.auth.signOut()
+            } catch (err) {
+              console.error("Sign out error:", err)
+            }
+            navigate("/login")
+            return
+          }
+        } else {
+          // If session exists but no timestamp, set it to now
+          localStorage.setItem("login_timestamp", now.toString())
+        }
+
+        // Check if user still exists in pending_users
+        const { data } = await supabase
+          .from("pending_users")
+          .select("status")
+          .eq("email", session.user.email)
+          .single()
+
+        if (!data || data.status !== "approved") {
+          localStorage.removeItem("login_timestamp")
+          try {
+            await supabase.auth.signOut()
+          } catch (err) {
+            console.error("Sign out error:", err)
+          }
+          navigate("/login")
+          return
+        }
+
+        setLoading(false)
+      } catch (err) {
+        console.error("Session verification failed:", err)
+        localStorage.removeItem("login_timestamp")
+        try {
+          await supabase.auth.signOut()
+        } catch (signOutErr) {
+          console.error("Sign out error:", signOutErr)
+        }
         navigate("/login")
-        return
       }
+    }
 
-      // Check if user still exists in pending_users
-      const { data } = await supabase
-        .from("pending_users")
-        .select("status")
-        .eq("email", session.user.email)
-        .single()
+    checkSession()
 
-      if (!data || data.status !== "approved") {
-        await supabase.auth.signOut()
-        navigate("/login")
-        return
+    // Periodically check every 1 minute to log out if 12 hours passes while user has dashboard open
+    const interval = setInterval(() => {
+      const loginTimestampStr = localStorage.getItem("login_timestamp")
+      if (loginTimestampStr) {
+        const loginTimestamp = parseInt(loginTimestampStr, 10)
+        const now = Date.now()
+        const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000
+        if (!isNaN(loginTimestamp) && now - loginTimestamp > TWELVE_HOURS_MS) {
+          localStorage.removeItem("login_timestamp")
+          supabase.auth.signOut()
+            .catch((err) => console.error("Auto sign out error:", err))
+            .finally(() => {
+              navigate("/login")
+            })
+        }
       }
+    }, 60000)
 
-      setLoading(false)
-    })
+    return () => clearInterval(interval)
   }, [navigate])
 
   // Close sidebar on route change
@@ -60,7 +123,12 @@ export function AdminLayout() {
   }, [location.pathname])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
+    localStorage.removeItem("login_timestamp")
+    try {
+      await supabase.auth.signOut()
+    } catch (err) {
+      console.error("Sign out error:", err)
+    }
     navigate("/login")
   }
 

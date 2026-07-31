@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import ReactMarkdown from "react-markdown"
 import {
   Bot,
@@ -9,10 +10,12 @@ import {
   Plus,
   X,
   FileText,
+  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useChat } from "@/hooks/useChat"
+import { supabase } from "@/lib/supabase"
 
 const CHAT_API_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/chat-widget"
@@ -26,11 +29,43 @@ function formatContent(text: string) {
 }
 
 export function AdminChatPage() {
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    let mounted = true
+
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      if (mounted) setUserId(user?.id ?? null)
+    })
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  if (!userId) {
+    return (
+      <div className="flex h-full items-center justify-center bg-background">
+        <Loader2 className="h-5 w-5 animate-spin text-white/35" />
+      </div>
+    )
+  }
+
+  return <AdminChatContent userId={userId} />
+}
+
+function AdminChatContent({ userId }: { userId: string }) {
+  useEffect(() => {
+    // This legacy key was shared by every admin using the same browser.
+    localStorage.removeItem("arkbot-admin-chat")
+  }, [])
+
   const {
     messages,
     input,
     setInput,
     isLoading,
+    isHistoryLoading,
     copiedId,
     selectedFiles,
     removeFile,
@@ -47,8 +82,16 @@ export function AdminChatPage() {
   } = useChat({
     apiEndpoint: CHAT_API_URL,
     apiKey: CHAT_API_KEY,
-    localStorageKey: "arkbot-admin-chat",
+    persistence: { kind: "admin", userId },
   })
+
+  if (isHistoryLoading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-background">
+        <Loader2 className="h-5 w-5 animate-spin text-white/35" />
+      </div>
+    )
+  }
 
   const isEmpty = messages.length === 0
 

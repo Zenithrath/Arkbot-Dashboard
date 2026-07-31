@@ -1,3 +1,4 @@
+import { useEffect } from "react"
 import ReactMarkdown from "react-markdown"
 import {
   Bot,
@@ -27,6 +28,11 @@ function formatContent(text: string) {
 }
 
 export function ChatPage() {
+  useEffect(() => {
+    // Remove the old cross-window cache after moving public chat to sessionStorage.
+    localStorage.removeItem("arkbot-chat")
+  }, [])
+
   const {
     messages,
     input,
@@ -48,7 +54,7 @@ export function ChatPage() {
   } = useChat({
     apiEndpoint: CHAT_API_URL,
     apiKey: CHAT_API_KEY,
-    localStorageKey: "arkbot-chat",
+    persistence: { kind: "session", storageKey: "arkbot-chat" },
     emptyReplyMessage: "Maaf, tidak ada jawaban yang diterima.",
     errorMessage: "Maaf, terjadi kesalahan saat menghubungi server. Silakan coba lagi.",
   })

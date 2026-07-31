@@ -168,6 +168,7 @@ export function useChat({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const historyLoadedRef = useRef(!adminUserId)
+  const hasUserInteractionRef = useRef(false)
 
   useEffect(() => {
     if (!adminUserId) return
@@ -179,7 +180,11 @@ export function useChat({
 
     void loadAdminChat(adminUserId)
       .then((remoteChat) => {
-        if (!cancelled && remoteChat) setChat(remoteChat)
+        if (!cancelled && remoteChat) {
+          setChat((currentChat) =>
+            hasUserInteractionRef.current ? currentChat : remoteChat
+          )
+        }
       })
       .catch((error) => {
         // The scoped local cache remains available if the database is offline.
@@ -271,7 +276,9 @@ export function useChat({
   const sendMessage = useCallback(
     async (text: string) => {
       const sanitized = sanitizeInput(text)
-      if ((!sanitized && selectedFiles.length === 0) || isLoading || isHistoryLoading) return
+      if ((!sanitized && selectedFiles.length === 0) || isLoading) return
+
+      hasUserInteractionRef.current = true
 
       const fileNames = selectedFiles.map((file) => file.name)
       const userMsg: Message = {
@@ -375,7 +382,6 @@ export function useChat({
       apiKey,
       emptyReplyMessage,
       errorMessage,
-      isHistoryLoading,
       isLoading,
       selectedFiles,
       sessionId,
@@ -399,6 +405,7 @@ export function useChat({
   }, [])
 
   const handleNewChat = useCallback(() => {
+    hasUserInteractionRef.current = true
     setChat(createEmptyChat())
     setSelectedFiles([])
   }, [])
@@ -412,6 +419,7 @@ export function useChat({
         .find((message) => message.role === "user")
 
       if (previousUserMessage) {
+        hasUserInteractionRef.current = true
         setChat((previous) => ({
           ...previous,
           messages: previous.messages.filter((message) => message.id !== messageId),

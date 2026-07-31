@@ -252,7 +252,7 @@ export function AdminLayout() {
           </div>
         </div>
         <div className="flex-1 overflow-auto overflow-x-hidden">
-          <Outlet />
+          <Outlet context={{ accountUserId }} />
         </div>
       </main>
 

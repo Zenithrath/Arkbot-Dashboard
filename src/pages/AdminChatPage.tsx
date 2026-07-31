@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import ReactMarkdown from "react-markdown"
+import { useOutletContext } from "react-router-dom"
 import {
   Bot,
   Copy,
@@ -10,12 +11,10 @@ import {
   Plus,
   X,
   FileText,
-  Loader2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useChat } from "@/hooks/useChat"
-import { supabase } from "@/lib/supabase"
 
 const CHAT_API_URL =
   "https://arkbot-n8n.6jkqbm.easypanel.host/webhook/chat-widget"
@@ -29,29 +28,10 @@ function formatContent(text: string) {
 }
 
 export function AdminChatPage() {
-  const [userId, setUserId] = useState<string | null>(null)
+  const { accountUserId } = useOutletContext<{ accountUserId: string | null }>()
+  if (!accountUserId) return null
 
-  useEffect(() => {
-    let mounted = true
-
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      if (mounted) setUserId(user?.id ?? null)
-    })
-
-    return () => {
-      mounted = false
-    }
-  }, [])
-
-  if (!userId) {
-    return (
-      <div className="flex h-full items-center justify-center bg-background">
-        <Loader2 className="h-5 w-5 animate-spin text-white/35" />
-      </div>
-    )
-  }
-
-  return <AdminChatContent userId={userId} />
+  return <AdminChatContent userId={accountUserId} />
 }
 
 function AdminChatContent({ userId }: { userId: string }) {
@@ -65,7 +45,6 @@ function AdminChatContent({ userId }: { userId: string }) {
     input,
     setInput,
     isLoading,
-    isHistoryLoading,
     historyError,
     copiedId,
     selectedFiles,
@@ -85,14 +64,6 @@ function AdminChatContent({ userId }: { userId: string }) {
     apiKey: CHAT_API_KEY,
     persistence: { kind: "admin", userId },
   })
-
-  if (isHistoryLoading) {
-    return (
-      <div className="flex h-full items-center justify-center bg-background">
-        <Loader2 className="h-5 w-5 animate-spin text-white/35" />
-      </div>
-    )
-  }
 
   const isEmpty = messages.length === 0
 

@@ -25,6 +25,7 @@ type PendingUser = {
 export function AdminRegistrationsPage() {
   const [users, setUsers] = useState<PendingUser[]>([])
   const [loading, setLoading] = useState(true)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<PendingUser | null>(null)
   const [editUser, setEditUser] = useState<PendingUser | null>(null)
@@ -48,6 +49,9 @@ export function AdminRegistrationsPage() {
 
   useEffect(() => {
     fetchUsers()
+    void supabase.auth.getUser().then(({ data: { user } }) => {
+      setCurrentUserId(user?.id ?? null)
+    })
   }, [])
 
   const callAccountFunction = async (body: Record<string, unknown>) => {
@@ -98,6 +102,10 @@ export function AdminRegistrationsPage() {
     setActionLoading(editUser.id)
 
     try {
+      if (editUser.user_id !== currentUserId) {
+        throw new Error("You can only edit the account signed in to this session.")
+      }
+
       await callAccountFunction({
         action: "update",
         user_id: editUser.user_id,
@@ -109,6 +117,9 @@ export function AdminRegistrationsPage() {
           user.id === editUser.id ? { ...user, email } : user
         )
       )
+      if (email !== editUser.email) {
+        await supabase.auth.refreshSession()
+      }
       setEditUser(null)
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update account.")
@@ -253,7 +264,7 @@ export function AdminRegistrationsPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {pendingUsers.map((user) => (
+          {pendingUsers.map((user) => (
               <div
                 key={user.id}
                 className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 sm:p-4 space-y-3"
@@ -285,16 +296,18 @@ export function AdminRegistrationsPage() {
                   </span>
 
                   <div className="flex gap-2">
-                    <Button
-                      onClick={() => openEdit(user)}
-                      disabled={actionLoading === user.id}
-                      size="sm"
-                      variant="outline"
-                      className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
-                    >
-                      <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Edit</span>
-                    </Button>
+                    {user.user_id === currentUserId && (
+                      <Button
+                        onClick={() => openEdit(user)}
+                        disabled={actionLoading === user.id}
+                        size="sm"
+                        variant="outline"
+                        className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                      >
+                        <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
+                        <span className="hidden sm:inline">Edit</span>
+                      </Button>
+                    )}
                     <Button
                       onClick={() => handleApprove(user)}
                       disabled={actionLoading === user.id}
@@ -363,16 +376,18 @@ export function AdminRegistrationsPage() {
                 </span>
 
                 <div className="flex gap-2">
-                  <Button
-                    onClick={() => openEdit(user)}
-                    disabled={actionLoading === user.id}
-                    size="sm"
-                    variant="outline"
-                    className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
-                  >
-                    <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
-                    <span className="hidden sm:inline">Edit</span>
-                  </Button>
+                  {user.user_id === currentUserId && (
+                    <Button
+                      onClick={() => openEdit(user)}
+                      disabled={actionLoading === user.id}
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                    >
+                      <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </Button>
+                  )}
                   <Button
                     onClick={() => setDeleteConfirm(user)}
                     disabled={actionLoading === user.id}

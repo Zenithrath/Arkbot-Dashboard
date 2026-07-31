@@ -96,6 +96,13 @@ serve(async (req) => {
       )
     }
 
+    if (actor.id !== userId) {
+      return new Response(
+        JSON.stringify({ error: "You can only edit the account signed in to this session" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    }
+
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
     const password = typeof body.password === "string" ? body.password : ""
 

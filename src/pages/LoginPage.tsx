@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "@/lib/supabase"
 import { Button } from "@/components/ui/button"
-import { Bot, Loader2, Mail } from "lucide-react"
+import { Bot, Loader2 } from "lucide-react"
 
 type AuthMode = "login" | "register"
 
@@ -14,10 +14,6 @@ export function LoginPage() {
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [forgotEmail, setForgotEmail] = useState("")
-  const [forgotLoading, setForgotLoading] = useState(false)
-  const [forgotSuccess, setForgotSuccess] = useState("")
   const navigate = useNavigate()
 
   const resetMessages = () => {
@@ -29,26 +25,6 @@ export function LoginPage() {
     setMode(nextMode)
     resetMessages()
     setConfirmPassword("")
-  }
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setForgotLoading(true)
-    setForgotSuccess("")
-    setError("")
-
-    const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-      redirectTo: `${window.location.origin}/login`,
-    })
-
-    setForgotLoading(false)
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setForgotSuccess("Password reset link sent! Check your email.")
-      setForgotEmail("")
-    }
   }
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -221,20 +197,6 @@ export function LoginPage() {
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-orange-500/50 transition-colors"
               placeholder="••••••••"
             />
-            {!isRegister && (
-              <button
-                type="button"
-                onClick={() => {
-                  setShowForgotPassword(true)
-                  setForgotEmail(email)
-                  setForgotSuccess("")
-                  setError("")
-                }}
-                className="mt-2 text-xs text-orange-400 hover:text-orange-300 transition-colors"
-              >
-                Forgot Password?
-              </button>
-            )}
           </div>
 
           {isRegister && (
@@ -281,78 +243,6 @@ export function LoginPage() {
           </Button>
         </form>
       </div>
-
-      {/* Forgot Password Modal */}
-      {showForgotPassword && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-white/[0.06] bg-[#1a1a1b] p-5 sm:p-6 shadow-xl">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-orange-500/10">
-                <Mail className="h-5 w-5 text-orange-400" />
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white">Reset Password</h3>
-                <p className="text-xs text-white/40">We'll send you a reset link</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleForgotPassword} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-white/50">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  required
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-orange-500/50 transition-colors"
-                  placeholder="your@email.com"
-                />
-              </div>
-
-              {forgotSuccess && (
-                <div className="rounded-lg border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm text-green-400">
-                  {forgotSuccess}
-                </div>
-              )}
-
-              {error && (
-                <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-400">
-                  {error}
-                </div>
-              )}
-
-              <div className="flex gap-3">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setShowForgotPassword(false)
-                    setForgotEmail("")
-                    setForgotSuccess("")
-                    setError("")
-                  }}
-                  variant="outline"
-                  className="flex-1 border-white/10 text-white/60"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={forgotLoading}
-                  className="flex-1 bg-orange-500 hover:bg-orange-400 text-white"
-                >
-                  {forgotLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    "Send Link"
-                  )}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

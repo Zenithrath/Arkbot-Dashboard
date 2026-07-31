@@ -11,6 +11,7 @@ import {
   Trash2,
   Users,
   AlertTriangle,
+  Pencil,
 } from "lucide-react"
 
 type PendingUser = {
@@ -26,6 +27,10 @@ export function AdminRegistrationsPage() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<PendingUser | null>(null)
+  const [editUser, setEditUser] = useState<PendingUser | null>(null)
+  const [editEmail, setEditEmail] = useState("")
+  const [editPassword, setEditPassword] = useState("")
+  const [actionError, setActionError] = useState("")
   const [activeTab, setActiveTab] = useState<"pending" | "approved">("pending")
 
   const fetchUsers = async () => {
@@ -45,6 +50,73 @@ export function AdminRegistrationsPage() {
     fetchUsers()
   }, [])
 
+  const callAccountFunction = async (body: Record<string, unknown>) => {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) throw new Error("Your session has expired. Please sign in again.")
+
+    const response = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-auth-user`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(body),
+      }
+    )
+    const data = await response.json().catch(() => ({}))
+
+    if (!response.ok || data.error) {
+      throw new Error(data.error || "Account action failed")
+    }
+  }
+
+  const openEdit = (user: PendingUser) => {
+    setActionError("")
+    setEditUser(user)
+    setEditEmail(user.email)
+    setEditPassword("")
+  }
+
+  const handleEdit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!editUser) return
+
+    const email = editEmail.trim().toLowerCase()
+    if (!email) {
+      setActionError("Email is required.")
+      return
+    }
+    if (editPassword && editPassword.length < 6) {
+      setActionError("New password must be at least 6 characters.")
+      return
+    }
+
+    setActionError("")
+    setActionLoading(editUser.id)
+
+    try {
+      await callAccountFunction({
+        action: "update",
+        user_id: editUser.user_id,
+        email,
+        password: editPassword,
+      })
+      setUsers((previous) =>
+        previous.map((user) =>
+          user.id === editUser.id ? { ...user, email } : user
+        )
+      )
+      setEditUser(null)
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to update account.")
+    } finally {
+      setActionLoading(null)
+    }
+  }
+
   const handleApprove = async (user: PendingUser) => {
     setActionLoading(user.id)
     const { error } = await supabase
@@ -62,69 +134,31 @@ export function AdminRegistrationsPage() {
 
   const handleReject = async (user: PendingUser) => {
     setActionLoading(user.id)
+    setActionError("")
 
-    // Delete auth user via Edge Function
-    if (user.user_id) {
-      try {
-        await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-auth-user`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ user_id: user.user_id }),
-        })
-      } catch (e) {
-        console.error("Failed to delete auth user:", e)
-      }
-    }
-
-    // Delete from pending_users
-    const { error } = await supabase
-      .from("pending_users")
-      .delete()
-      .eq("id", user.id)
-
-    if (!error) {
+    try {
+      await callAccountFunction({ action: "delete", user_id: user.user_id })
       setUsers((prev) => prev.filter((u) => u.id !== user.id))
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to reject account.")
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   const handleDelete = async (user: PendingUser) => {
     setActionLoading(user.id)
+    setActionError("")
 
-    // Delete auth user via Edge Function
-    if (user.user_id) {
-      try {
-        const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-auth-user`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          },
-          body: JSON.stringify({ user_id: user.user_id }),
-        })
-        const data = await res.json()
-        if (data.error) {
-          console.error("Edge Function error:", data.error)
-        }
-      } catch (e) {
-        console.error("Failed to delete auth user:", e)
-      }
-    }
-
-    // Delete from pending_users
-    const { error } = await supabase
-      .from("pending_users")
-      .delete()
-      .eq("id", user.id)
-
-    if (!error) {
+    try {
+      await callAccountFunction({ action: "delete", user_id: user.user_id })
       setUsers((prev) => prev.filter((u) => u.id !== user.id))
       setDeleteConfirm(null)
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Unable to delete account.")
+    } finally {
+      setActionLoading(null)
     }
-    setActionLoading(null)
   }
 
   const pendingUsers = users.filter((u) => u.status === "pending")
@@ -166,6 +200,12 @@ export function AdminRegistrationsPage() {
           <span className="hidden sm:inline ml-2">Refresh</span>
         </Button>
       </div>
+
+      {actionError && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {actionError}
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto">
@@ -246,6 +286,16 @@ export function AdminRegistrationsPage() {
 
                   <div className="flex gap-2">
                     <Button
+                      onClick={() => openEdit(user)}
+                      disabled={actionLoading === user.id}
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                    >
+                      <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Edit</span>
+                    </Button>
+                    <Button
                       onClick={() => handleApprove(user)}
                       disabled={actionLoading === user.id}
                       size="sm"
@@ -312,15 +362,27 @@ export function AdminRegistrationsPage() {
                   active
                 </span>
 
-                <Button
-                  onClick={() => setDeleteConfirm(user)}
-                  disabled={actionLoading === user.id}
-                  size="sm"
-                  variant="outline"
-                  className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => openEdit(user)}
+                    disabled={actionLoading === user.id}
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                  >
+                    <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
+                    <span className="hidden sm:inline">Edit</span>
+                  </Button>
+                  <Button
+                    onClick={() => setDeleteConfirm(user)}
+                    disabled={actionLoading === user.id}
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
@@ -365,6 +427,62 @@ export function AdminRegistrationsPage() {
                 )}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {editUser && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.06] bg-[#1a1a1b] p-5 shadow-xl sm:p-6">
+            <div className="mb-5">
+              <h3 className="text-base font-semibold text-white">Edit account</h3>
+              <p className="mt-1 text-xs text-white/40">Update sign-in details and dashboard access.</p>
+            </div>
+
+            <form onSubmit={handleEdit} className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/45">Email</label>
+                <input
+                  type="email"
+                  value={editEmail}
+                  onChange={(event) => setEditEmail(event.target.value)}
+                  required
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none transition-colors focus:border-orange-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/45">New password</label>
+                <input
+                  type="password"
+                  value={editPassword}
+                  onChange={(event) => setEditPassword(event.target.value)}
+                  minLength={editPassword ? 6 : undefined}
+                  placeholder="Leave blank to keep the current password"
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition-colors focus:border-orange-500/50"
+                />
+              </div>
+
+              {actionError && <p className="text-sm text-red-300">{actionError}</p>}
+
+              <div className="flex gap-3 pt-1">
+                <Button
+                  type="button"
+                  onClick={() => setEditUser(null)}
+                  variant="outline"
+                  className="flex-1 border-white/10 text-white/60 hover:text-white"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={actionLoading === editUser.id}
+                  className="flex-1 bg-orange-500 text-white hover:bg-orange-400"
+                >
+                  {actionLoading === editUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

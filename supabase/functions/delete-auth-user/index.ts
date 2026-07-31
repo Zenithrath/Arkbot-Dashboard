@@ -12,34 +12,128 @@ serve(async (req) => {
   }
 
   try {
-    // Webhook sends the deleted row data
     const body = await req.json()
-    const user_id = body.record?.user_id || body.user_id
+    const userId = body.record?.user_id || body.user_id
+    const action = body.action ?? "delete"
+    const authHeader = req.headers.get("Authorization")
 
-    if (!user_id) {
+    if (!authHeader) {
       return new Response(
-        JSON.stringify({ error: "user_id not found in payload" }),
+        JSON.stringify({ error: "Missing authorization token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    }
+
+    if (!userId || (action !== "delete" && action !== "update")) {
+      return new Response(
+        JSON.stringify({ error: "Invalid account management request" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? ""
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+
+    const authenticatedClient = createClient(supabaseUrl, anonKey, {
+      global: { headers: { Authorization: authHeader } },
+    })
+    const { data: { user: actor }, error: actorError } = await authenticatedClient.auth.getUser()
+
+    if (actorError || !actor) {
+      return new Response(
+        JSON.stringify({ error: "Invalid authorization token" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       )
     }
 
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+      supabaseUrl,
+      serviceRoleKey
     )
 
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(user_id)
+    // The dashboard grants account-management access only to approved accounts.
+    const { data: actorRecord, error: actorRecordError } = await supabaseAdmin
+      .from("pending_users")
+      .select("status")
+      .eq("user_id", actor.id)
+      .maybeSingle()
 
-    if (error) {
-      console.error("Delete auth user error:", error.message)
+    if (actorRecordError || actorRecord?.status !== "approved") {
       return new Response(
-        JSON.stringify({ error: error.message }),
+        JSON.stringify({ error: "You are not allowed to manage accounts" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    }
+
+    if (action === "delete") {
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(userId)
+
+      if (error) {
+        console.error("Delete auth user error:", error.message)
+        return new Response(
+          JSON.stringify({ error: error.message }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        )
+      }
+
+      const { error: deleteProfileError } = await supabaseAdmin
+        .from("pending_users")
+        .delete()
+        .eq("user_id", userId)
+
+      if (deleteProfileError) {
+        console.error("Delete account record error:", deleteProfileError.message)
+        return new Response(
+          JSON.stringify({ error: "Auth account was deleted, but its dashboard record could not be removed" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        )
+      }
+
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    }
+
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
+    const password = typeof body.password === "string" ? body.password : ""
+
+    if (!email || (password && password.length < 6)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid email or password" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       )
     }
 
+    const authUpdates: { email: string; password?: string } = { email }
+    if (password) authUpdates.password = password
+
+    const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(userId, authUpdates)
+
+    if (updateAuthError) {
+      console.error("Update auth user error:", updateAuthError.message)
+      return new Response(
+        JSON.stringify({ error: updateAuthError.message }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    }
+
+    const { error: updateProfileError } = await supabaseAdmin
+      .from("pending_users")
+      .update({ email })
+      .eq("user_id", userId)
+
+    if (updateProfileError) {
+      console.error("Update account record error:", updateProfileError.message)
+      return new Response(
+        JSON.stringify({ error: "Auth account was updated, but its dashboard record could not be updated" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
+    }
+
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, email }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   } catch (err) {

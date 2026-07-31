@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
+import { manageAccount } from "@/lib/accountManagement"
 import { Button } from "@/components/ui/button"
 import {
   Loader2,
@@ -11,7 +12,7 @@ import {
   Trash2,
   Users,
   AlertTriangle,
-  Pencil,
+  KeyRound,
 } from "lucide-react"
 
 type PendingUser = {
@@ -25,11 +26,9 @@ type PendingUser = {
 export function AdminRegistrationsPage() {
   const [users, setUsers] = useState<PendingUser[]>([])
   const [loading, setLoading] = useState(true)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<PendingUser | null>(null)
   const [editUser, setEditUser] = useState<PendingUser | null>(null)
-  const [editEmail, setEditEmail] = useState("")
   const [editPassword, setEditPassword] = useState("")
   const [actionError, setActionError] = useState("")
   const [activeTab, setActiveTab] = useState<"pending" | "approved">("pending")
@@ -49,38 +48,11 @@ export function AdminRegistrationsPage() {
 
   useEffect(() => {
     fetchUsers()
-    void supabase.auth.getUser().then(({ data: { user } }) => {
-      setCurrentUserId(user?.id ?? null)
-    })
   }, [])
-
-  const callAccountFunction = async (body: Record<string, unknown>) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error("Your session has expired. Please sign in again.")
-
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-auth-user`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify(body),
-      }
-    )
-    const data = await response.json().catch(() => ({}))
-
-    if (!response.ok || data.error) {
-      throw new Error(data.error || "Account action failed")
-    }
-  }
 
   const openEdit = (user: PendingUser) => {
     setActionError("")
     setEditUser(user)
-    setEditEmail(user.email)
     setEditPassword("")
   }
 
@@ -88,12 +60,7 @@ export function AdminRegistrationsPage() {
     event.preventDefault()
     if (!editUser) return
 
-    const email = editEmail.trim().toLowerCase()
-    if (!email) {
-      setActionError("Email is required.")
-      return
-    }
-    if (editPassword && editPassword.length < 6) {
+    if (editPassword.length < 6) {
       setActionError("New password must be at least 6 characters.")
       return
     }
@@ -102,24 +69,11 @@ export function AdminRegistrationsPage() {
     setActionLoading(editUser.id)
 
     try {
-      if (editUser.user_id !== currentUserId) {
-        throw new Error("You can only edit the account signed in to this session.")
-      }
-
-      await callAccountFunction({
+      await manageAccount({
         action: "update",
         user_id: editUser.user_id,
-        email,
         password: editPassword,
       })
-      setUsers((previous) =>
-        previous.map((user) =>
-          user.id === editUser.id ? { ...user, email } : user
-        )
-      )
-      if (email !== editUser.email) {
-        await supabase.auth.refreshSession()
-      }
       setEditUser(null)
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to update account.")
@@ -148,7 +102,7 @@ export function AdminRegistrationsPage() {
     setActionError("")
 
     try {
-      await callAccountFunction({ action: "delete", user_id: user.user_id })
+      await manageAccount({ action: "delete", user_id: user.user_id })
       setUsers((prev) => prev.filter((u) => u.id !== user.id))
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Unable to reject account.")
@@ -162,7 +116,7 @@ export function AdminRegistrationsPage() {
     setActionError("")
 
     try {
-      await callAccountFunction({ action: "delete", user_id: user.user_id })
+      await manageAccount({ action: "delete", user_id: user.user_id })
       setUsers((prev) => prev.filter((u) => u.id !== user.id))
       setDeleteConfirm(null)
     } catch (error) {
@@ -296,18 +250,16 @@ export function AdminRegistrationsPage() {
                   </span>
 
                   <div className="flex gap-2">
-                    {user.user_id === currentUserId && (
-                      <Button
-                        onClick={() => openEdit(user)}
-                        disabled={actionLoading === user.id}
-                        size="sm"
-                        variant="outline"
-                        className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
-                      >
-                        <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
-                        <span className="hidden sm:inline">Edit</span>
-                      </Button>
-                    )}
+                    <Button
+                      onClick={() => openEdit(user)}
+                      disabled={actionLoading === user.id}
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                    >
+                      <KeyRound className="h-3.5 w-3.5 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Password</span>
+                    </Button>
                     <Button
                       onClick={() => handleApprove(user)}
                       disabled={actionLoading === user.id}
@@ -376,18 +328,16 @@ export function AdminRegistrationsPage() {
                 </span>
 
                 <div className="flex gap-2">
-                  {user.user_id === currentUserId && (
-                    <Button
-                      onClick={() => openEdit(user)}
-                      disabled={actionLoading === user.id}
-                      size="sm"
-                      variant="outline"
-                      className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
-                    >
-                      <Pencil className="h-3.5 w-3.5 sm:mr-1.5" />
-                      <span className="hidden sm:inline">Edit</span>
-                    </Button>
-                  )}
+                  <Button
+                    onClick={() => openEdit(user)}
+                    disabled={actionLoading === user.id}
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-white/10 text-white/60 hover:bg-white/5 hover:text-white"
+                  >
+                    <KeyRound className="h-3.5 w-3.5 sm:mr-1.5" />
+                    <span className="hidden sm:inline">Password</span>
+                  </Button>
                   <Button
                     onClick={() => setDeleteConfirm(user)}
                     disabled={actionLoading === user.id}
@@ -450,30 +400,20 @@ export function AdminRegistrationsPage() {
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center">
           <div className="w-full max-w-md rounded-xl border border-white/[0.06] bg-[#1a1a1b] p-5 shadow-xl sm:p-6">
             <div className="mb-5">
-              <h3 className="text-base font-semibold text-white">Edit account</h3>
-              <p className="mt-1 text-xs text-white/40">Update sign-in details and dashboard access.</p>
+              <h3 className="text-base font-semibold text-white">Change password</h3>
+              <p className="mt-1 break-all text-xs text-white/40">{editUser.email}</p>
             </div>
 
             <form onSubmit={handleEdit} className="space-y-4">
-              <div>
-                <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/45">Email</label>
-                <input
-                  type="email"
-                  value={editEmail}
-                  onChange={(event) => setEditEmail(event.target.value)}
-                  required
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white outline-none transition-colors focus:border-orange-500/50"
-                />
-              </div>
-
               <div>
                 <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-white/45">New password</label>
                 <input
                   type="password"
                   value={editPassword}
                   onChange={(event) => setEditPassword(event.target.value)}
-                  minLength={editPassword ? 6 : undefined}
-                  placeholder="Leave blank to keep the current password"
+                  minLength={6}
+                  required
+                  placeholder="At least 6 characters"
                   className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition-colors focus:border-orange-500/50"
                 />
               </div>
@@ -494,7 +434,7 @@ export function AdminRegistrationsPage() {
                   disabled={actionLoading === editUser.id}
                   className="flex-1 bg-orange-500 text-white hover:bg-orange-400"
                 >
-                  {actionLoading === editUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save changes"}
+                  {actionLoading === editUser.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update password"}
                 </Button>
               </div>
             </form>

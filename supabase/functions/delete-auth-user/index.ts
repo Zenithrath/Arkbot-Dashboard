@@ -96,27 +96,16 @@ serve(async (req) => {
       )
     }
 
-    if (actor.id !== userId) {
-      return new Response(
-        JSON.stringify({ error: "You can only edit the account signed in to this session" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      )
-    }
-
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : ""
     const password = typeof body.password === "string" ? body.password : ""
 
-    if (!email || (password && password.length < 6)) {
+    if (password.length < 6) {
       return new Response(
-        JSON.stringify({ error: "Invalid email or password" }),
+        JSON.stringify({ error: "Password must be at least 6 characters" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       )
     }
 
-    const authUpdates: { email: string; password?: string } = { email }
-    if (password) authUpdates.password = password
-
-    const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(userId, authUpdates)
+    const { error: updateAuthError } = await supabaseAdmin.auth.admin.updateUserById(userId, { password })
 
     if (updateAuthError) {
       console.error("Update auth user error:", updateAuthError.message)
@@ -126,21 +115,8 @@ serve(async (req) => {
       )
     }
 
-    const { error: updateProfileError } = await supabaseAdmin
-      .from("pending_users")
-      .update({ email })
-      .eq("user_id", userId)
-
-    if (updateProfileError) {
-      console.error("Update account record error:", updateProfileError.message)
-      return new Response(
-        JSON.stringify({ error: "Auth account was updated, but its dashboard record could not be updated" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      )
-    }
-
     return new Response(
-      JSON.stringify({ success: true, email }),
+      JSON.stringify({ success: true }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     )
   } catch (err) {

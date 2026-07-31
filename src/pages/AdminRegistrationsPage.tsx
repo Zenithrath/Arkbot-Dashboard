@@ -13,6 +13,8 @@ import {
   Users,
   AlertTriangle,
   KeyRound,
+  Search,
+  X,
 } from "lucide-react"
 
 type PendingUser = {
@@ -32,6 +34,7 @@ export function AdminRegistrationsPage() {
   const [editPassword, setEditPassword] = useState("")
   const [actionError, setActionError] = useState("")
   const [activeTab, setActiveTab] = useState<"pending" | "approved">("pending")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const fetchUsers = async () => {
     setLoading(true)
@@ -126,8 +129,12 @@ export function AdminRegistrationsPage() {
     }
   }
 
-  const pendingUsers = users.filter((u) => u.status === "pending")
-  const approvedUsers = users.filter((u) => u.status === "approved")
+  const normalizedQuery = searchQuery.trim().toLowerCase()
+  const matchingUsers = normalizedQuery
+    ? users.filter((user) => user.email.toLowerCase().includes(normalizedQuery))
+    : users
+  const pendingUsers = matchingUsers.filter((user) => user.status === "pending")
+  const approvedUsers = matchingUsers.filter((user) => user.status === "approved")
   const pendingCount = pendingUsers.length
 
   const statusIcon = (status: string) => {
@@ -172,6 +179,27 @@ export function AdminRegistrationsPage() {
         </div>
       )}
 
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35" />
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Search users by email..."
+          className="w-full rounded-lg border border-white/10 bg-white/[0.03] py-2.5 pl-10 pr-10 text-sm text-white outline-none transition-colors placeholder:text-white/30 focus:border-orange-500/50"
+        />
+        {searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            title="Clear search"
+            className="absolute right-2 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-white/35 transition-colors hover:bg-white/5 hover:text-white/70"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto">
         <button
@@ -214,7 +242,7 @@ export function AdminRegistrationsPage() {
         pendingUsers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-white/40">
             <UserCheck className="h-12 w-12 mb-3 opacity-50" />
-            <p className="text-sm">No pending registrations</p>
+            <p className="text-sm">{normalizedQuery ? "No matching pending users" : "No pending registrations"}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -294,7 +322,7 @@ export function AdminRegistrationsPage() {
       ) : approvedUsers.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-white/40">
           <Users className="h-12 w-12 mb-3 opacity-50" />
-          <p className="text-sm">No active users</p>
+          <p className="text-sm">{normalizedQuery ? "No matching active users" : "No active users"}</p>
         </div>
       ) : (
         <div className="space-y-3">

@@ -197,6 +197,11 @@ export function LoginPage() {
               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white placeholder:text-white/30 outline-none focus:border-orange-500/50 transition-colors"
               placeholder="••••••••"
             />
+            {!isRegister && (
+              <p className="mt-2 text-xs leading-relaxed text-white/35">
+                Forgot your password? Ask an approved dashboard administrator to reset it from Users.
+              </p>
+            )}
           </div>
 
           {isRegister && (

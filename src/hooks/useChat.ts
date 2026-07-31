@@ -123,6 +123,19 @@ async function saveAdminChat(userId: string, chat: ChatStorage) {
   if (error) throw error
 }
 
+function formatHistoryError(error: unknown): string {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "PGRST205"
+  ) {
+    return "Admin chat history is not configured in Supabase yet."
+  }
+
+  return "Admin chat history could not be synced to Supabase."
+}
+
 function sanitizeInput(text: string): string {
   return text
     .replace(/[<>]/g, "")
@@ -148,6 +161,7 @@ export function useChat({
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isHistoryLoading, setIsHistoryLoading] = useState(Boolean(adminUserId))
+  const [historyError, setHistoryError] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
 
@@ -161,6 +175,7 @@ export function useChat({
     let cancelled = false
     historyLoadedRef.current = false
     setIsHistoryLoading(true)
+    setHistoryError(null)
 
     void loadAdminChat(adminUserId)
       .then((remoteChat) => {
@@ -169,6 +184,7 @@ export function useChat({
       .catch((error) => {
         // The scoped local cache remains available if the database is offline.
         console.warn("Unable to load admin chat history:", error)
+        if (!cancelled) setHistoryError(formatHistoryError(error))
       })
       .finally(() => {
         if (!cancelled) {
@@ -192,6 +208,7 @@ export function useChat({
     const saveTimer = window.setTimeout(() => {
       void saveAdminChat(adminUserId, chat).catch((error) => {
         console.warn("Unable to save admin chat history:", error)
+        setHistoryError(formatHistoryError(error))
       })
     }, ADMIN_SAVE_DELAY_MS)
 
@@ -411,6 +428,7 @@ export function useChat({
     setInput,
     isLoading,
     isHistoryLoading,
+    historyError,
     copiedId,
     selectedFiles,
     removeFile,

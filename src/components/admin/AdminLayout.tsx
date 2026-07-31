@@ -25,6 +25,7 @@ const navItems = [
 export function AdminLayout() {
   const [loading, setLoading] = useState(true)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [accountEmail, setAccountEmail] = useState<string | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -37,9 +38,12 @@ export function AdminLayout() {
         
         if (!session) {
           localStorage.removeItem("login_timestamp")
+          setAccountEmail(null)
           navigate("/login")
           return
         }
+
+        setAccountEmail(session.user.email ?? null)
 
         // Check 12-hour session expiration
         const loginTimestampStr = localStorage.getItem("login_timestamp")
@@ -50,6 +54,7 @@ export function AdminLayout() {
           const loginTimestamp = parseInt(loginTimestampStr, 10)
           if (isNaN(loginTimestamp) || now - loginTimestamp > TWELVE_HOURS_MS) {
             localStorage.removeItem("login_timestamp")
+            setAccountEmail(null)
             try {
               await supabase.auth.signOut()
             } catch (err) {
@@ -72,6 +77,7 @@ export function AdminLayout() {
 
         if (!data || data.status !== "approved") {
           localStorage.removeItem("login_timestamp")
+          setAccountEmail(null)
           try {
             await supabase.auth.signOut()
           } catch (err) {
@@ -85,6 +91,7 @@ export function AdminLayout() {
       } catch (err) {
         console.error("Session verification failed:", err)
         localStorage.removeItem("login_timestamp")
+        setAccountEmail(null)
         try {
           await supabase.auth.signOut()
         } catch (signOutErr) {
@@ -124,6 +131,7 @@ export function AdminLayout() {
 
   const handleLogout = async () => {
     localStorage.removeItem("login_timestamp")
+    setAccountEmail(null)
     try {
       await supabase.auth.signOut()
     } catch (err) {
@@ -197,6 +205,24 @@ export function AdminLayout() {
 
         {/* Footer */}
         <div className="border-t border-white/[0.06] p-3">
+          {accountEmail && (
+            <div
+              className="mb-2 flex min-w-0 items-center gap-2.5 rounded-lg px-3 py-2"
+              title={accountEmail}
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-orange-500/15 text-xs font-semibold uppercase text-orange-400">
+                {accountEmail.slice(0, 1)}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-[0.14em] text-white/35">
+                  Signed in as
+                </p>
+                <p className="truncate text-xs font-medium text-white/75">
+                  {accountEmail}
+                </p>
+              </div>
+            </div>
+          )}
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-white/50 transition-colors hover:bg-white/5 hover:text-white/80"

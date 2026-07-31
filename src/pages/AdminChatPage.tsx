@@ -66,6 +66,7 @@ function AdminChatContent({ userId }: { userId: string }) {
     setInput,
     isLoading,
     isHistoryLoading,
+    historyError,
     copiedId,
     selectedFiles,
     removeFile,
@@ -97,6 +98,11 @@ function AdminChatContent({ userId }: { userId: string }) {
 
   return (
     <div className="flex h-full flex-col bg-background overflow-hidden relative">
+      {historyError && (
+        <div className="mx-4 mt-3 flex shrink-0 items-center rounded-lg border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs text-amber-100/85">
+          {historyError} Run the admin chat migration in the Supabase SQL Editor.
+        </div>
+      )}
       {/* New session button */}
       <button
         onClick={handleNewChat}
